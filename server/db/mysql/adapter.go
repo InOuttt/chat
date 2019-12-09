@@ -2250,7 +2250,7 @@ func (a *adapter) CredUpsert(cred *t.Credential) (bool, error) {
 		synth = cred.User + ":" + synth
 
 		// Adding new unvalidated credential. Deactivate all unvalidated records of this user and method.
-		_, err = tx.Exec("UPDATE [dbo].[credentials] SET [deletedat]=? WHERE [userid]=? AND [method]=? AND [done]=false",
+		_, err = tx.Exec("UPDATE [dbo].[credentials] SET [deletedat]=? WHERE [userid]=? AND [method]=? AND [done]='0'",
 			now, userId, cred.Method)
 		// Assume that the record exists and try to update it: undelete, update timestamp and response value.
 		res, err := tx.Exec("UPDATE [dbo].[credentials] SET [updatedat]=?,[deletedat]=NULL,[resp]=?,[done]=0 WHERE [synthetic]=?",
@@ -2286,7 +2286,7 @@ func (a *adapter) CredUpsert(cred *t.Credential) (bool, error) {
 func (a *adapter) CredIsConfirmed(uid t.Uid, method string) (bool, error) {
 	var done int
 	// There could be more than one credential of the same method. We just need one.
-	err := a.db.Get(&done, "SELECT [done] FROM [dbo].[credentials] WHERE [userid]=? AND [method]=? AND [done]=true",
+	err := a.db.Get(&done, "SELECT [done] FROM [dbo].[credentials] WHERE [userid]=? AND [method]=? AND [done]='1'",
 		store.DecodeUid(uid), method)
 	if err == sql.ErrNoRows {
 		// Nothing found, clear the error, otherwise it will be reported as internal error.
@@ -2322,7 +2322,7 @@ func credDel(tx *sqlx.Tx, uid t.Uid, method, value string) error {
 	}
 
 	// Case 2.1
-	if _, err := tx.Exec("DELETE FROM [dbo].[credentials]"+constraints+" AND ([done]=true OR [retries]=0)", args...); err != nil {
+	if _, err := tx.Exec("DELETE FROM [dbo].[credentials]"+constraints+" AND ([done]='1' OR [retries]=0)", args...); err != nil {
 		return err
 	}
 
@@ -2358,8 +2358,8 @@ func (a *adapter) CredDel(uid t.Uid, method, value string) error {
 // CredConfirm marks given credential method as confirmed.
 func (a *adapter) CredConfirm(uid t.Uid, method string) error {
 	res, err := a.db.Exec(
-		"UPDATE [dbo].[credentials] SET [updatedat]=?,[done]=true,[synthetic]=CONCAT(method,':',value) "+
-			"WHERE [userid]=? AND [method]=? AND [deletedat] IS NULL AND [done]=false",
+		"UPDATE [dbo].[credentials] SET [updatedat]=?,[done]='1',[synthetic]=CONCAT(method,':',value) "+
+			"WHERE [userid]=? AND [method]=? AND [deletedat] IS NULL AND [done]='0'",
 		t.TimeNow(), store.DecodeUid(uid), method)
 	if err != nil {
 		if isDupe(err) {
@@ -2375,7 +2375,7 @@ func (a *adapter) CredConfirm(uid t.Uid, method string) error {
 
 // CredFail increments failure count of the given validation method.
 func (a *adapter) CredFail(uid t.Uid, method string) error {
-	_, err := a.db.Exec("UPDATE [dbo].[credentials] SET [updatedat]=?,[retries]=[retries]+1 WHERE [userid]=? AND [method]=? AND [done]=false",
+	_, err := a.db.Exec("UPDATE [dbo].[credentials] SET [updatedat]=?,[retries]=[retries]+1 WHERE [userid]=? AND [method]=? AND [done]='0'",
 		t.TimeNow(), store.DecodeUid(uid), method)
 	return err
 }
@@ -2384,7 +2384,7 @@ func (a *adapter) CredFail(uid t.Uid, method string) error {
 func (a *adapter) CredGetActive(uid t.Uid, method string) (*t.Credential, error) {
 	var cred t.Credential
 	err := a.db.Get(&cred, "SELECT [createdat],[updatedat],[method],[value],[resp],[done],[retries] "+
-		"FROM [dbo].[credentials] WHERE [userid]=? AND [deletedat] IS NULL AND [method]=? AND [done]=false",
+		"FROM [dbo].[credentials] WHERE [userid]=? AND [deletedat] IS NULL AND [method]=? AND [done]='0'",
 		store.DecodeUid(uid), method)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -2406,7 +2406,7 @@ func (a *adapter) CredGetAll(uid t.Uid, method string, validatedOnly bool) ([]t.
 		args = append(args, method)
 	}
 	if validatedOnly {
-		query += " AND [done]=true"
+		query += " AND [done]='1'"
 	}
 
 	var credentials []t.Credential
