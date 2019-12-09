@@ -12,11 +12,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/abaron/chat/server/auth"
+	"github.com/abaron/chat/server/store"
+	t "github.com/abaron/chat/server/store/types"
 	ms "github.com/denisenkom/go-mssqldb"
 	"github.com/jmoiron/sqlx"
-	"github.com/tinode/chat/server/auth"
-	"github.com/tinode/chat/server/store"
-	t "github.com/tinode/chat/server/store/types"
 )
 
 // adapter holds MySQL connection data.
@@ -1136,7 +1136,7 @@ func (a *adapter) TopicsForUser(uid t.Uid, keepDeleted bool, opts *t.QueryOpt) (
 		}
 	}
 
-	q += " LIMIT ?"
+	q += " ORDER BY id OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY"
 	args = append(args, limit)
 
 	rows, err := a.db.Queryx(q, args...)
@@ -1301,7 +1301,7 @@ func (a *adapter) UsersForTopic(topic string, keepDeleted bool, opts *t.QueryOpt
 			limit = opts.Limit
 		}
 	}
-	q += " LIMIT ?"
+	q += " ORDER BY id OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY"
 	args = append(args, limit)
 
 	rows, err := a.db.Queryx(q, args...)
@@ -1542,7 +1542,7 @@ func (a *adapter) SubsForUser(forUser t.Uid, keepDeleted bool, opts *t.QueryOpt)
 			limit = opts.Limit
 		}
 	}
-	q += " LIMIT ?"
+	q += " ORDER BY id OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY"
 	args = append(args, limit)
 
 	rows, err := a.db.Queryx(q, args...)
@@ -1591,7 +1591,7 @@ func (a *adapter) SubsForTopic(topic string, keepDeleted bool, opts *t.QueryOpt)
 		}
 	}
 
-	q += " LIMIT ?"
+	q += " ORDER BY id OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY"
 	args = append(args, limit)
 
 	rows, err := a.db.Queryx(q, args...)
@@ -1727,7 +1727,7 @@ func (a *adapter) FindUsers(uid t.Uid, req, opt []string) ([]t.Subscription, err
 		}
 		args = append(args, len(req))
 	}
-	query += "ORDER BY matches DESC LIMIT ?"
+	query += "ORDER BY matches DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY"
 
 	// Get users matched by tags, sort by number of matches from high to low.
 	rows, err := a.db.Queryx(query, append(args, a.maxResults)...)
@@ -1793,7 +1793,7 @@ func (a *adapter) FindTopics(req, opt []string) ([]t.Subscription, error) {
 		}
 		args = append(args, len(req))
 	}
-	query += "ORDER BY matches DESC LIMIT ?"
+	query += "ORDER BY matches DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY"
 	rows, err := a.db.Queryx(query, append(args, a.maxResults)...)
 
 	if err != nil {
@@ -1870,7 +1870,7 @@ func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) (
 			" FROM [dbo].[messages] AS m LEFT JOIN [dbo].[dellog] AS d"+
 			" ON d.topic=m.topic AND m.seqid BETWEEN d.low AND d.hi AND d.deletedfor=?"+
 			" WHERE m.delid=0 AND m.topic=? AND m.seqid BETWEEN ? AND ? AND d.deletedfor IS NULL"+
-			" ORDER BY m.seqid DESC LIMIT ?",
+			" ORDER BY m.seqid DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY",
 		unum, topic, lower, upper, limit)
 
 	if err != nil {
@@ -1922,7 +1922,7 @@ func (a *adapter) MessageGetDeleted(topic string, forUser t.Uid, opts *t.QueryOp
 	// Fetch log of deletions
 	rows, err := a.db.Queryx("SELECT [topic],[deletedfor],[delid],[low],[hi] FROM [dbo].[dellog] WHERE [topic]=? AND [delid] BETWEEN ? AND ?"+
 		" AND ([deletedFor]=0 OR [deletedFor]=?)"+
-		" ORDER BY [delid] LIMIT ?", topic, lower, upper, store.DecodeUid(forUser), limit)
+		" ORDER BY [delid] OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY", topic, lower, upper, store.DecodeUid(forUser), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -2504,7 +2504,7 @@ func (a *adapter) FileDeleteUnused(olderThan time.Time, limit int) ([]string, er
 		args = append(args, olderThan)
 	}
 	if limit > 0 {
-		query += "LIMIT ?"
+		query += "ORDER BY id OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY"
 		args = append(args, limit)
 	}
 
