@@ -1,12 +1,16 @@
 package types
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/base32"
 	"encoding/base64"
 	"encoding/binary"
+	"encoding/gob"
 	"encoding/json"
 	"errors"
+	"log"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -357,7 +361,24 @@ func (h *ObjHeader) IsDeleted() bool {
 type StringSlice []string
 
 // Scan implements sql.Scanner interface.
+// Topic
 func (ss *StringSlice) Scan(val interface{}) error {
+	// MsSql
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(val)
+	if err != nil {
+		return err
+	}
+	var toString string = string(buf.Bytes())
+	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c / , \a \x04")
+	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
+	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
+	log.Println(toString, json.Unmarshal([]byte(toString), ss))
+	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
+	return json.Unmarshal([]byte(toString), ss)
+
+	// MySql
 	return json.Unmarshal(val.([]byte), ss)
 }
 
@@ -524,9 +545,25 @@ func (m *AccessMode) UnmarshalJSON(b []byte) error {
 // Scan is an implementation of sql.Scanner interface. It expects the
 // value to be a byte slice representation of an ASCII string.
 func (m *AccessMode) Scan(val interface{}) error {
-	if bb, ok := val.([]byte); ok {
-		return m.UnmarshalText(bb)
+	// MsSQL
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(val)
+	if err != nil {
+		return err
 	}
+	var toString string = string(buf.Bytes())
+	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c")
+	reg, err := regexp.Compile("[^JRWASDPONjrwasdpon]+")
+	if err != nil {
+		return errors.New("scan failed: fail convert and convert and convert")
+	}
+	toString = reg.ReplaceAllString(toString, "")
+	log.Println(toString)
+
+	// if bb, ok := []byte(toString); ok {
+	return m.UnmarshalText([]byte(toString))
+	// }
 	return errors.New("scan failed: data is not a byte slice")
 }
 
@@ -637,13 +674,40 @@ func (m AccessMode) IsDefined() bool {
 
 // DefaultAccess is a per-topic default access modes
 type DefaultAccess struct {
-	Auth AccessMode
-	Anon AccessMode
+	Auth AccessMode `json:"Auth"`
+	Anon AccessMode `json:"Anon"`
 }
 
 // Scan is an implementation of Scanner interface so the value can be read from SQL DBs
 // It assumes the value is serialized and stored as JSON
 func (da *DefaultAccess) Scan(val interface{}) error {
+	// log.Println("nol: ", val.(string))
+	// log.Println("satu: ", val)
+	// log.Println("dua: ", val.([]byte))
+	// log.Println("tiga: ", json.Unmarshal(val.([]byte), da))
+
+	// MsSQL
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(val)
+	if err != nil {
+		return err
+	}
+	var toString string = string(buf.Bytes())
+	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c \x1a \x17 \a")
+	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
+	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
+	log.Println(toString)
+	log.Println(json.Unmarshal([]byte(toString), da))
+	log.Println("ini auth", &da.Auth)
+	log.Println("ini anon", &da.Anon)
+	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
+	return json.Unmarshal([]byte(toString), da)
+
+	// MySQL
+	// json.Unmarshal(val.([]byte), da)
+	// log.Println("ini auth", &da.Auth)
+	// log.Println("ini anon", &da.Anon)
 	return json.Unmarshal(val.([]byte), da)
 }
 
@@ -901,7 +965,24 @@ type SoftDelete struct {
 type MessageHeaders map[string]interface{}
 
 // Scan implements sql.Scanner interface.
+// Get message all
 func (mh *MessageHeaders) Scan(val interface{}) error {
+	// MsSql
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	err := enc.Encode(val)
+	if err != nil {
+		return err
+	}
+	var toString string = string(buf.Bytes())
+	toString = strings.Trim(toString, "\t \n \a \f \x00 \x04 \x1b \x18")
+	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
+	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
+	log.Println(toString, json.Unmarshal([]byte(toString), mh))
+	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
+	return json.Unmarshal([]byte(toString), mh)
+
+	// MySql
 	return json.Unmarshal(val.([]byte), mh)
 }
 

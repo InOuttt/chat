@@ -6,7 +6,7 @@ import (
 	"errors"
 	"time"
 
-	t "github.com/tinode/chat/server/store/types"
+	t "github.com/abaron/chat/server/store/types"
 )
 
 // Recipient is a user targeted by the push.

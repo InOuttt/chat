@@ -16,7 +16,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/tinode/chat/pbx"
+	"github.com/abaron/chat/pbx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/keepalive"

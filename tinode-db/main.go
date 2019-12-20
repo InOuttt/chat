@@ -13,9 +13,11 @@ import (
 	"time"
 
 	jcr "github.com/DisposaBoy/JsonConfigReader"
-	_ "github.com/tinode/chat/server/db/mysql"
-	_ "github.com/tinode/chat/server/db/rethinkdb"
-	"github.com/tinode/chat/server/store"
+	_ "github.com/abaron/chat/server/db/mysql"
+	// _ "github.com/abaron/chat/server/db/mysql2"
+	_ "github.com/abaron/chat/server/db/mssql"
+	_ "github.com/abaron/chat/server/db/rethinkdb"
+	"github.com/abaron/chat/server/store"
 )
 
 type configType struct {

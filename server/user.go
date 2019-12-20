@@ -4,10 +4,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/tinode/chat/server/auth"
-	"github.com/tinode/chat/server/push"
-	"github.com/tinode/chat/server/store"
-	"github.com/tinode/chat/server/store/types"
+	"github.com/abaron/chat/server/auth"
+	"github.com/abaron/chat/server/push"
+	"github.com/abaron/chat/server/store"
+	"github.com/abaron/chat/server/store/types"
 )
 
 // Process request for a new account.
@@ -105,7 +105,7 @@ func replyCreateUser(s *Session, msg *ClientComMessage, rec *auth.Rec) {
 	// Add authentication record. The authhdl.AddRecord may change tags.
 	rec, err := authhdl.AddRecord(&auth.Rec{Uid: user.Uid(), Tags: user.Tags}, msg.Acc.Secret)
 	if err != nil {
-		log.Println("create user: add auth record failed", err, s.sid)
+		log.Println("create user: add auth record failed woi", err, s.sid)
 		// Attempt to delete incomplete user record
 		store.Users.Delete(user.Uid(), false)
 		s.queueOut(decodeStoreError(err, msg.id, "", msg.timestamp, nil))

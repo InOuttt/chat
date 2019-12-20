@@ -15,10 +15,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/tinode/chat/server/auth"
-	"github.com/tinode/chat/server/push"
-	"github.com/tinode/chat/server/store"
-	"github.com/tinode/chat/server/store/types"
+	"github.com/abaron/chat/server/auth"
+	"github.com/abaron/chat/server/push"
+	"github.com/abaron/chat/server/store"
+	"github.com/abaron/chat/server/store/types"
 )
 
 // Topic is an isolated communication channel
@@ -1831,6 +1831,7 @@ func (t *Topic) replyGetData(sess *Session, asUid types.Uid, id string, req *Msg
 	if userData := t.perUser[asUid]; (userData.modeGiven & userData.modeWant).IsReader() {
 		// Read messages from DB
 		messages, err := store.Messages.GetAll(t.name, asUid, msgOpts2storeOpts(req))
+		log.Println("MESSAGES: ", messages)
 		if err != nil {
 			sess.queueOut(ErrUnknown(id, toriginal, now))
 			return err

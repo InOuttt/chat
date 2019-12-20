@@ -72,10 +72,18 @@ func getIDBuffer(ug *UidGenerator) ([]byte, error) {
 // set is unsupported and possibly for other uses such as MySQL's recommendation
 // for sequential primary keys.
 func (ug *UidGenerator) DecodeUid(uid Uid) int64 {
+	// log.Println("string", uid.String())
+	// log.Println("uint64", uint64(uid))
 	var src = make([]byte, 8)
 	var dst = make([]byte, 8)
 	binary.LittleEndian.PutUint64(src, uint64(uid))
+	// log.Println("PutUint64")
 	ug.cipher.Decrypt(dst, src)
+	// log.Println("Decrypt")
+	// log.Println(dst, src)
+	// log.Println(string(dst), string(src))
+	// log.Println(int64(binary.LittleEndian.Uint64(dst)))
+	// return 679201105841754112
 	return int64(binary.LittleEndian.Uint64(dst))
 }
 
