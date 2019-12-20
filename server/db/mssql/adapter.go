@@ -9,11 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"hash/fnv"
-	"log"
 	"strconv"
 	"strings"
 	"time"
 
+	af "github.com/abaron/chat/server/adira_finance"
 	"github.com/abaron/chat/server/auth"
 	"github.com/abaron/chat/server/store"
 	t "github.com/abaron/chat/server/store/types"
@@ -44,14 +44,6 @@ const (
 	defaultMaxResults = 1024
 )
 
-const (
-	InfoColor    = "\033[1;34m%s\033[0m" // blue
-	NoticeColor  = "\033[1;36m%s\033[0m"
-	WarningColor = "\033[1;33m%s\033[0m"
-	ErrorColor   = "\033[1;31m%s\033[0m" // red
-	DebugColor   = "\033[0;36m%s\033[0m"
-)
-
 type configType struct {
 	DSN    string `json:"dsn,omitempty"`
 	DBName string `json:"database,omitempty"`
@@ -59,7 +51,7 @@ type configType struct {
 
 // Open initializes database session
 func (a *adapter) Open(jsonconfig string) error {
-	log.Printf(InfoColor, "[ adapter open ]")
+	af.Log.Info("[ adapter open ]")
 	if a.db != nil {
 		return errors.New("mssql adapter is already connected")
 	}
@@ -103,7 +95,7 @@ func (a *adapter) Open(jsonconfig string) error {
 
 // Close closes the underlying database connection
 func (a *adapter) Close() error {
-	log.Printf(InfoColor, "[ adapter close ]")
+	af.Log.Info("[ adapter close ]")
 	var err error
 	if a.db != nil {
 		err = a.db.Close()
@@ -116,13 +108,13 @@ func (a *adapter) Close() error {
 // IsOpen returns true if connection to database has been established. It does not check if
 // connection is actually live.
 func (a *adapter) IsOpen() bool {
-	log.Printf(InfoColor, "[ adapter isopen ]")
+	af.Log.Info("[ adapter isopen ]")
 	return a.db != nil
 }
 
 // GetDbVersion returns current database version.
 func (a *adapter) GetDbVersion() (int, error) {
-	log.Printf(InfoColor, "[ adapter getdbversion ]")
+	af.Log.Info("[ adapter getdbversion ]")
 	if a.version > 0 {
 		return a.version, nil
 	}
@@ -142,7 +134,7 @@ func (a *adapter) GetDbVersion() (int, error) {
 }
 
 func (a *adapter) updateDbVersion(v int) error {
-	log.Printf(InfoColor, "[ adapter updatedbversion ]")
+	af.Log.Info("[ adapter updatedbversion ]")
 	a.version = -1
 	if _, err := a.db.Exec("UPDATE [kvmeta] SET [value]=? WHERE [key]='version'", v); err != nil {
 		return err
@@ -152,7 +144,7 @@ func (a *adapter) updateDbVersion(v int) error {
 
 // CheckDbVersion checks whether the actual DB version matches the expected version of this adapter.
 func (a *adapter) CheckDbVersion() error {
-	log.Printf(InfoColor, "[ adapter checkdbversion ]")
+	af.Log.Info("[ adapter checkdbversion ]")
 	version, err := a.GetDbVersion()
 	if err != nil {
 		return err
@@ -173,13 +165,13 @@ func (adapter) Version() int {
 
 // GetName returns string that adapter uses to register itself with store.
 func (a *adapter) GetName() string {
-	log.Printf(InfoColor, "[ adapter getname ]")
+	af.Log.Info("[ adapter getname ]")
 	return adapterName
 }
 
 // SetMaxResults configures how many results can be returned in a single DB call.
 func (a *adapter) SetMaxResults(val int) error {
-	log.Printf(InfoColor, "[ adapter setmaxresults ]")
+	af.Log.Info("[ adapter setmaxresults ]")
 	if val <= 0 {
 		a.maxResults = defaultMaxResults
 	} else {
@@ -191,7 +183,7 @@ func (a *adapter) SetMaxResults(val int) error {
 
 // CreateDb initializes the storage.
 func (a *adapter) CreateDb(reset bool) error {
-	log.Printf(InfoColor, "[ adapter createdb ]")
+	af.Log.Info("[ adapter createdb ]")
 	var err error
 	var tx *sql.Tx
 
@@ -465,7 +457,7 @@ func (a *adapter) CreateDb(reset bool) error {
 }
 
 func (a *adapter) UpgradeDb() error {
-	log.Printf(InfoColor, "[ adapter upgradedb ]")
+	af.Log.Info("[ adapter upgradedb ]")
 	if _, err := a.GetDbVersion(); err != nil {
 		return err
 	}
@@ -569,7 +561,7 @@ func removeTags(tx *sqlx.Tx, table, keyName string, keyVal interface{}, tags []s
 // UserCreate creates a new user. Returns error and true if error is due to duplicate user name,
 // false for any other error
 func (a *adapter) UserCreate(user *t.User) error {
-	log.Printf(InfoColor, "[ adapter usercreate ]")
+	af.Log.Info("[ adapter usercreate ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -600,7 +592,7 @@ func (a *adapter) UserCreate(user *t.User) error {
 // Add user's authentication record
 func (a *adapter) AuthAddRecord(uid t.Uid, scheme, unique string, authLvl auth.Level,
 	secret []byte, expires time.Time) (bool, error) {
-	log.Printf(InfoColor, "[ adapter authaddrecord ]")
+	af.Log.Info("[ adapter authaddrecord ]")
 
 	var exp *time.Time
 	if !expires.IsZero() {
@@ -619,14 +611,14 @@ func (a *adapter) AuthAddRecord(uid t.Uid, scheme, unique string, authLvl auth.L
 
 // AuthDelScheme deletes an existing authentication scheme for the user.
 func (a *adapter) AuthDelScheme(user t.Uid, scheme string) error {
-	log.Printf(InfoColor, "[ adapter authdelscheme ]")
+	af.Log.Info("[ adapter authdelscheme ]")
 	_, err := a.db.Exec("DELETE FROM [dbo].[auth] WHERE [userid]=? AND [scheme]=?", store.DecodeUid(user), scheme)
 	return err
 }
 
 // AuthDelAllRecords deletes all authentication records for the user.
 func (a *adapter) AuthDelAllRecords(user t.Uid) (int, error) {
-	log.Printf(InfoColor, "[ adapter authdelallrecords ]")
+	af.Log.Info("[ adapter authdelallrecords ]")
 	res, err := a.db.Exec("DELETE FROM [dbo].[auth] WHERE [userid]=?", store.DecodeUid(user))
 	if err != nil {
 		return 0, err
@@ -639,7 +631,7 @@ func (a *adapter) AuthDelAllRecords(user t.Uid) (int, error) {
 // Update user's authentication secret
 func (a *adapter) AuthUpdRecord(uid t.Uid, scheme, unique string, authLvl auth.Level,
 	secret []byte, expires time.Time) (bool, error) {
-	log.Printf(InfoColor, "[ adapter authupdrecord ]")
+	af.Log.Info("[ adapter authupdrecord ]")
 	var exp *time.Time
 	if !expires.IsZero() {
 		exp = &expires
@@ -656,7 +648,7 @@ func (a *adapter) AuthUpdRecord(uid t.Uid, scheme, unique string, authLvl auth.L
 
 // Retrieve user's authentication record
 func (a *adapter) AuthGetRecord(uid t.Uid, scheme string) (string, auth.Level, []byte, time.Time, error) {
-	log.Printf(InfoColor, "[ adapter authgetrecord ]")
+	af.Log.Info("[ adapter authgetrecord ]")
 	var expires time.Time
 
 	var record struct {
@@ -684,7 +676,7 @@ func (a *adapter) AuthGetRecord(uid t.Uid, scheme string) (string, auth.Level, [
 
 // Retrieve user's authentication record
 func (a *adapter) AuthGetUniqueRecord(unique string) (t.Uid, auth.Level, []byte, time.Time, error) {
-	log.Printf(InfoColor, "[ adapter authgetuniquerecord ]")
+	af.Log.Info("[ adapter authgetuniquerecord ]")
 	var expires time.Time
 
 	var record struct {
@@ -711,7 +703,7 @@ func (a *adapter) AuthGetUniqueRecord(unique string) (t.Uid, auth.Level, []byte,
 
 // UserGet fetches a single user by user id. If user is not found it returns (nil, nil)
 func (a *adapter) UserGet(uid t.Uid) (*t.User, error) {
-	log.Printf(InfoColor, "[ adapter userget ]")
+	af.Log.Info("[ adapter userget ]")
 	var user t.User
 	err := a.db.Get(&user, "SELECT * FROM [dbo].[users] WHERE [id]=? AND [deletedat] IS NULL", store.DecodeUid(uid))
 	if err == nil {
@@ -730,7 +722,7 @@ func (a *adapter) UserGet(uid t.Uid) (*t.User, error) {
 }
 
 func (a *adapter) UserGetAll(ids ...t.Uid) ([]t.User, error) {
-	log.Printf(InfoColor, "[ adapter usergetall ]")
+	af.Log.Info("[ adapter usergetall ]")
 	uids := make([]interface{}, len(ids))
 	for i, id := range ids {
 		uids[i] = store.DecodeUid(id)
@@ -768,7 +760,7 @@ func (a *adapter) UserGetAll(ids ...t.Uid) ([]t.User, error) {
 // UserDelete deletes specified user: wipes completely (hard-delete) or marks as deleted.
 // TODO: report when the user is not found.
 func (a *adapter) UserDelete(uid t.Uid, hard bool) error {
-	log.Printf(InfoColor, "[ adapter userdelete ]")
+	af.Log.Info("[ adapter userdelete ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -878,7 +870,7 @@ func (a *adapter) UserDelete(uid t.Uid, hard bool) error {
 }
 
 func (a *adapter) UserGetDisabled(since time.Time) ([]t.Uid, error) {
-	log.Printf(InfoColor, "[ adapter usergetdisabled ]")
+	af.Log.Info("[ adapter usergetdisabled ]")
 	rows, err := a.db.Queryx("SELECT [id] FROM [dbo].[users] WHERE [deletedat]>=?", since)
 	if err != nil {
 		return nil, err
@@ -900,7 +892,7 @@ func (a *adapter) UserGetDisabled(since time.Time) ([]t.Uid, error) {
 
 // UserUpdate updates user object.
 func (a *adapter) UserUpdate(uid t.Uid, update map[string]interface{}) error {
-	log.Printf(InfoColor, "[ adapter userupdate ]")
+	af.Log.Info("[ adapter userupdate ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -940,7 +932,7 @@ func (a *adapter) UserUpdate(uid t.Uid, update map[string]interface{}) error {
 
 // UserUpdateTags adds or resets user's tags
 func (a *adapter) UserUpdateTags(uid t.Uid, add, remove, reset []string) ([]string, error) {
-	log.Printf(InfoColor, "[ adapter userupdatetags ]")
+	af.Log.Info("[ adapter userupdatetags ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return nil, err
@@ -992,7 +984,7 @@ func (a *adapter) UserUpdateTags(uid t.Uid, add, remove, reset []string) ([]stri
 
 // UserGetByCred returns user ID for the given validated credential.
 func (a *adapter) UserGetByCred(method, value string) (t.Uid, error) {
-	log.Printf(InfoColor, "[ adapter usergetbycred ]")
+	af.Log.Info("[ adapter usergetbycred ]")
 	var decoded_uid int64
 	err := a.db.Get(&decoded_uid, "SELECT [userid] FROM [dbo].[credentials] WHERE [synthetic]=?", method+":"+value)
 	if err == nil {
@@ -1009,7 +1001,7 @@ func (a *adapter) UserGetByCred(method, value string) (t.Uid, error) {
 // UserUnreadCount returns the total number of unread messages in all topics with
 // the R permission.
 func (a *adapter) UserUnreadCount(uid t.Uid) (int, error) {
-	log.Printf(InfoColor, "[ adapter userunreadcount ]")
+	af.Log.Info("[ adapter userunreadcount ]")
 	var count int
 	err := a.db.Get(&count, "SELECT SUM(t.seqid)-SUM(s.readseqid) FROM topics AS t, subscriptions AS s "+
 		"WHERE s.userid=? AND t.name=s.topic AND s.deletedat IS NULL AND t.deletedat IS NULL AND "+
@@ -1028,7 +1020,7 @@ func (a *adapter) UserUnreadCount(uid t.Uid) (int, error) {
 // *****************************
 
 func (a *adapter) topicCreate(tx *sqlx.Tx, topic *t.Topic) error {
-	log.Printf(InfoColor, "[ adapter topiccreate ]")
+	af.Log.Info("[ adapter topiccreate ]")
 	_, err := tx.Exec("INSERT INTO [dbo].[topics] ([createdAt],[updatedAt],[touchedAt],[name],[owner],[access],[public],[tags]) "+
 		"VALUES (?,?,?,?,?,?,?,?)",
 		topic.CreatedAt, topic.UpdatedAt, topic.TouchedAt, topic.Id, store.DecodeUid(t.ParseUid(topic.Owner)),
@@ -1043,7 +1035,7 @@ func (a *adapter) topicCreate(tx *sqlx.Tx, topic *t.Topic) error {
 
 // TopicCreate saves topic object to database.
 func (a *adapter) TopicCreate(topic *t.Topic) error {
-	log.Printf(InfoColor, "[ adapter topiccreate ]")
+	af.Log.Info("[ adapter topiccreate ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -1094,7 +1086,7 @@ func createSubscription(tx *sqlx.Tx, sub *t.Subscription, undelete bool) error {
 
 // TopicCreateP2P given two users creates a p2p topic
 func (a *adapter) TopicCreateP2P(initiator, invited *t.Subscription) error {
-	log.Printf(InfoColor, "[ adapter topiccreatep2p ]")
+	af.Log.Info("[ adapter topiccreatep2p ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -1128,7 +1120,7 @@ func (a *adapter) TopicCreateP2P(initiator, invited *t.Subscription) error {
 
 // TopicGet loads a single topic by name, if it exists. If the topic does not exist the call returns (nil, nil)
 func (a *adapter) TopicGet(topic string) (*t.Topic, error) {
-	log.Printf(InfoColor, "[ adapter topicget ]")
+	af.Log.Info("[ adapter topicget ]")
 	// Fetch topic by name
 	var tt = new(t.Topic)
 	err := a.db.Get(tt,
@@ -1152,7 +1144,7 @@ func (a *adapter) TopicGet(topic string) (*t.Topic, error) {
 // TopicsForUser loads user's contact list: p2p and grp topics, except for 'me' & 'fnd' subscriptions.
 // Reads and denormalizes Public value.
 func (a *adapter) TopicsForUser(uid t.Uid, keepDeleted bool, opts *t.QueryOpt) ([]t.Subscription, error) {
-	log.Printf(InfoColor, "[ adapter topicsforuser ]")
+	af.Log.Info("[ adapter topicsforuser ]")
 	// Fetch user's subscriptions
 	q := `SELECT [createdat],[updatedat],[deletedat],[topic],[delid],[recvseqid],
 		[readseqid],[modewant],[modegiven],[private] FROM [dbo].[subscriptions] WHERE [userid]=?`
@@ -1303,7 +1295,7 @@ func (a *adapter) TopicsForUser(uid t.Uid, keepDeleted bool, opts *t.QueryOpt) (
 // The difference between UsersForTopic vs SubsForTopic is that the former loads user.public,
 // the latter does not.
 func (a *adapter) UsersForTopic(topic string, keepDeleted bool, opts *t.QueryOpt) ([]t.Subscription, error) {
-	log.Printf(InfoColor, "[ adapter usersfortopic ]")
+	af.Log.Info("[ adapter usersfortopic ]")
 	tcat := t.GetTopicCat(topic)
 
 	// Fetch all subscribed users. The number of users is not large
@@ -1399,7 +1391,7 @@ func (a *adapter) UsersForTopic(topic string, keepDeleted bool, opts *t.QueryOpt
 
 // OwnTopics loads a slice of topic names where the user is the owner.
 func (a *adapter) OwnTopics(uid t.Uid, opts *t.QueryOpt) ([]string, error) {
-	log.Printf(InfoColor, "[ adapter owntopics ]")
+	af.Log.Info("[ adapter owntopics ]")
 	rows, err := a.db.Queryx("SELECT [name] FROM [dbo].[topics] WHERE [owner]=?", store.DecodeUid(uid))
 	if err != nil {
 		return nil, err
@@ -1419,7 +1411,7 @@ func (a *adapter) OwnTopics(uid t.Uid, opts *t.QueryOpt) ([]string, error) {
 }
 
 func (a *adapter) TopicShare(shares []*t.Subscription) (int, error) {
-	log.Printf(InfoColor, "[ adapter topicshare ]")
+	af.Log.Info("[ adapter topicshare ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return 0, err
@@ -1442,7 +1434,7 @@ func (a *adapter) TopicShare(shares []*t.Subscription) (int, error) {
 
 // TopicDelete deletes specified topic.
 func (a *adapter) TopicDelete(topic string, hard bool) error {
-	log.Printf(InfoColor, "[ adapter topicdelete ]")
+	af.Log.Info("[ adapter topicdelete ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -1484,14 +1476,14 @@ func (a *adapter) TopicDelete(topic string, hard bool) error {
 }
 
 func (a *adapter) TopicUpdateOnMessage(topic string, msg *t.Message) error {
-	log.Printf(InfoColor, "[ adapter topicupdateonmessage ]")
+	af.Log.Info("[ adapter topicupdateonmessage ]")
 	_, err := a.db.Exec("UPDATE [dbo].[topics] SET [seqid]=?,[touchedat]=? WHERE [name]=?", msg.SeqId, msg.CreatedAt, topic)
 
 	return err
 }
 
 func (a *adapter) TopicUpdate(topic string, update map[string]interface{}) error {
-	log.Printf(InfoColor, "[ adapter topicupdate ]")
+	af.Log.Info("[ adapter topicupdate ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -1528,14 +1520,14 @@ func (a *adapter) TopicUpdate(topic string, update map[string]interface{}) error
 }
 
 func (a *adapter) TopicOwnerChange(topic string, newOwner, oldOwner t.Uid) error {
-	log.Printf(InfoColor, "[ adapter topicownerchange ]")
+	af.Log.Info("[ adapter topicownerchange ]")
 	_, err := a.db.Exec("UPDATE [dbo].[topics] SET [owner]=? WHERE [name]=?", store.DecodeUid(newOwner), topic)
 	return err
 }
 
 // Get a subscription of a user to a topic
 func (a *adapter) SubscriptionGet(topic string, user t.Uid) (*t.Subscription, error) {
-	log.Printf(InfoColor, "[ adapter subscriptionget ]")
+	af.Log.Info("[ adapter subscriptionget ]")
 	var sub t.Subscription
 	err := a.db.Get(&sub, `SELECT [createdat],[updatedat],[deletedat],[userid] AS [user],[topic],[delid],[recvseqid],
 		[readseqid],[modewant],[modegiven],[private] FROM [dbo].[subscriptions] WHERE [topic]=? AND [userid]=?`,
@@ -1560,7 +1552,7 @@ func (a *adapter) SubscriptionGet(topic string, user t.Uid) (*t.Subscription, er
 
 // Update time when the user was last attached to the topic
 func (a *adapter) SubsLastSeen(topic string, user t.Uid, lastSeen map[string]time.Time) error {
-	log.Printf(InfoColor, "[ adapter subslastseen ]")
+	af.Log.Info("[ adapter subslastseen ]")
 	_, err := a.db.Exec("UPDATE [dbo].[subscriptions] SET [lastseen]=?,[useragent]=? WHERE [topic]=? AND [userid]=?",
 		lastSeen["LastSeen"], lastSeen["UserAgent"], topic, store.DecodeUid(user))
 
@@ -1570,7 +1562,7 @@ func (a *adapter) SubsLastSeen(topic string, user t.Uid, lastSeen map[string]tim
 // SubsForUser loads a list of user's subscriptions to topics. Does NOT load Public value.
 // TODO: this is used only for presence notifications, no need to load Private either.
 func (a *adapter) SubsForUser(forUser t.Uid, keepDeleted bool, opts *t.QueryOpt) ([]t.Subscription, error) {
-	log.Printf(InfoColor, "[ adapter subsforuser ]")
+	af.Log.Info("[ adapter subsforuser ]")
 	q := `SELECT [createdat],[updatedat],[deletedat],[userid] AS [user],[topic],[delid],[recvseqid],
 		[readseqid],[modewant],[modegiven],[private] FROM [dbo].[subscriptions] WHERE [userid]=?`
 	args := []interface{}{store.DecodeUid(forUser)}
@@ -1619,7 +1611,7 @@ func (a *adapter) SubsForUser(forUser t.Uid, keepDeleted bool, opts *t.QueryOpt)
 // The difference between UsersForTopic vs SubsForTopic is that the former loads user.public,
 // the latter does not.
 func (a *adapter) SubsForTopic(topic string, keepDeleted bool, opts *t.QueryOpt) ([]t.Subscription, error) {
-	log.Printf(InfoColor, "[ adapter subsfortopic ]")
+	af.Log.Info("[ adapter subsfortopic ]")
 	q := `SELECT [createdat],[updatedat],[deletedat],[userid] AS [user],[topic],[delid],[recvseqid],
 		[readseqid],[modewant],[modegiven],[private] FROM [dbo].[subscriptions] WHERE [topic]=?`
 	args := []interface{}{topic}
@@ -1652,7 +1644,6 @@ func (a *adapter) SubsForTopic(topic string, keepDeleted bool, opts *t.QueryOpt)
 
 	var subs []t.Subscription
 	var ss t.Subscription
-	log.Println("ROWS: ", *rows)
 	for rows.Next() {
 		if err = rows.StructScan(&ss); err != nil {
 			break
@@ -1669,7 +1660,7 @@ func (a *adapter) SubsForTopic(topic string, keepDeleted bool, opts *t.QueryOpt)
 
 // SubsUpdate updates one or multiple subscriptions to a topic.
 func (a *adapter) SubsUpdate(topic string, user t.Uid, update map[string]interface{}) error {
-	log.Printf(InfoColor, "[ adapter subsupdate ]")
+	af.Log.Info("[ adapter subsupdate ]")
 	tx, err := a.db.Begin()
 	if err != nil {
 		return err
@@ -1682,6 +1673,8 @@ func (a *adapter) SubsUpdate(topic string, user t.Uid, update map[string]interfa
 	}()
 
 	cols, args := updateByMap(update)
+	af.Log.Error(cols)
+	af.Log.Error(args)
 	q := "UPDATE [dbo].subscriptions SET " + strings.Join(cols, ",") + " WHERE [topic]=?"
 	args = append(args, topic)
 	if !user.IsZero() {
@@ -1691,6 +1684,7 @@ func (a *adapter) SubsUpdate(topic string, user t.Uid, update map[string]interfa
 	}
 
 	if _, err = tx.Exec(q, args...); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1699,7 +1693,7 @@ func (a *adapter) SubsUpdate(topic string, user t.Uid, update map[string]interfa
 
 // SubsDelete marks subscription as deleted.
 func (a *adapter) SubsDelete(topic string, user t.Uid) error {
-	log.Printf(InfoColor, "[ adapter subsdelete ]")
+	af.Log.Info("[ adapter subsdelete ]")
 	now := t.TimeNow()
 	res, err := a.db.Exec("UPDATE [dbo].[subscriptions] SET [updatedat]=?, [deletedat]=? WHERE [topic]=? AND [userid]=? AND [deletedat] IS NULL",
 		now, now, topic, store.DecodeUid(user))
@@ -1715,7 +1709,7 @@ func (a *adapter) SubsDelete(topic string, user t.Uid) error {
 
 // SubsDelForTopic marks all subscriptions to the given topic as deleted
 func (a *adapter) SubsDelForTopic(topic string, hard bool) error {
-	log.Printf(InfoColor, "[ adapter subsdelfortopic ]")
+	af.Log.Info("[ adapter subsdelfortopic ]")
 	var err error
 	if hard {
 		_, err = a.db.Exec("DELETE FROM [dbo].[subscriptions] WHERE [topic]=?", topic)
@@ -1742,7 +1736,7 @@ func subsDelForUser(tx *sqlx.Tx, user t.Uid, hard bool) error {
 
 // SubsDelForTopic marks user's subscriptions as deleted
 func (a *adapter) SubsDelForUser(user t.Uid, hard bool) error {
-	log.Printf(InfoColor, "[ adapter subsdelforuser ]")
+	af.Log.Info("[ adapter subsdelforuser ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -1789,7 +1783,7 @@ func (a *adapter) FindUsers(uid t.Uid, req, opt []string) ([]t.Subscription, err
 		COUNT ( CASE WHEN [t].[tag] IN ( 'email:test1@mailinator.com' ) OR [t].[tag] IS NULL THEN 1 ELSE 0 END ) >= 1
 	ORDER BY
 		[matches] DESC OFFSET 0 ROWS FETCH NEXT 1024 ROWS ONLY  */
-	log.Printf(InfoColor, "[ adapter findusers ]")
+	af.Log.Info("[ adapter findusers ]")
 	index := make(map[string]struct{})
 	var args []interface{}
 	for _, tag := range append(req, opt...) {
@@ -1825,7 +1819,7 @@ func (a *adapter) FindUsers(uid t.Uid, req, opt []string) ([]t.Subscription, err
 	}
 	query += "ORDER BY [matches] DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY"
 	// query += "ORDER BY [matches] DESC"
-	// log.Println(args, a.maxResults)
+	// af.Log.Ln(args, a.maxResults)
 	// log.Printf(ErrorColor, query)
 
 	// Get users matched by tags, sort by number of matches from high to low.
@@ -1875,7 +1869,7 @@ func (a *adapter) FindUsers(uid t.Uid, req, opt []string) ([]t.Subscription, err
 // Returns a list of topics with matching tags.
 // Searching the 'topics.Tags' for the given tags using respective index.
 func (a *adapter) FindTopics(req, opt []string) ([]t.Subscription, error) {
-	log.Printf(InfoColor, "[ adapter findtopics ]")
+	af.Log.Info("[ adapter findtopics ]")
 	index := make(map[string]struct{})
 	var args []interface{}
 	for _, tag := range append(req, opt...) {
@@ -1935,7 +1929,7 @@ func (a *adapter) FindTopics(req, opt []string) ([]t.Subscription, error) {
 
 // Messages
 func (a *adapter) MessageSave(msg *t.Message) error {
-	log.Printf(InfoColor, "[ adapter messagesave ]")
+	af.Log.Info("[ adapter messagesave ]")
 	var res sql.Result
 	var err error
 
@@ -1959,7 +1953,7 @@ func (a *adapter) MessageSave(msg *t.Message) error {
 }
 
 func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) ([]t.Message, error) {
-	log.Printf(InfoColor, "[ adapter messagegetall ]")
+	af.Log.Info("[ adapter messagegetall ]")
 	var limit = a.maxResults
 	var lower = 0
 	var upper = 1 << 31
@@ -1987,7 +1981,7 @@ func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) (
 			" ORDER BY [m].[seqid] DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY",
 		unum, topic, lower, upper, limit)
 
-	log.Println(unum, topic, lower, upper, limit)
+	af.Log.Ln(unum, topic, lower, upper, limit)
 
 	if err != nil {
 		return nil, err
@@ -1999,11 +1993,8 @@ func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) (
 		if err = rows.StructScan(&msg); err != nil {
 			break
 		}
-		log.Println(msg.Content)
-		log.Println(msg.Head)
 		msg.From = encodeUidString(msg.From).String()
 		msg.Content = fromJSON(msg.Content)
-		log.Println(msg.Content)
 		msgs = append(msgs, msg)
 	}
 	rows.Close()
@@ -2020,7 +2011,7 @@ var dellog struct {
 
 // Get ranges of deleted messages
 func (a *adapter) MessageGetDeleted(topic string, forUser t.Uid, opts *t.QueryOpt) ([]t.DelMessage, error) {
-	log.Printf(InfoColor, "[ adapter messagegetdeleted ]")
+	af.Log.Info("[ adapter messagegetdeleted ]")
 	var limit = a.maxResults
 	var lower = 0
 	var upper = 1 << 31
@@ -2154,7 +2145,7 @@ func messageDeleteList(tx *sqlx.Tx, topic string, toDel *t.DelMessage) error {
 
 // MessageDeleteList deletes messages in the given topic with seqIds from the list
 func (a *adapter) MessageDeleteList(topic string, toDel *t.DelMessage) (err error) {
-	log.Printf(InfoColor, "[ adapter messagedeletelist ]")
+	af.Log.Info("[ adapter messagedeletelist ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -2175,7 +2166,7 @@ func (a *adapter) MessageDeleteList(topic string, toDel *t.DelMessage) (err erro
 
 // MessageAttachments connects given message to a list of file record IDs.
 func (a *adapter) MessageAttachments(msgId t.Uid, fids []string) error {
-	log.Printf(InfoColor, "[ adapter messageattachments ]")
+	af.Log.Info("[ adapter messageattachments ]")
 	var args []interface{}
 	var values []string
 	strNow := t.TimeNow().Format("2006-01-02T15:04:05.999")
@@ -2227,7 +2218,7 @@ func deviceHasher(deviceID string) string {
 
 // Device management for push notifications
 func (a *adapter) DeviceUpsert(uid t.Uid, def *t.DeviceDef) error {
-	log.Printf(InfoColor, "[ adapter deviceupsert ]")
+	af.Log.Info("[ adapter deviceupsert ]")
 	hash := deviceHasher(def.DeviceId)
 
 	tx, err := a.db.Begin()
@@ -2257,7 +2248,7 @@ func (a *adapter) DeviceUpsert(uid t.Uid, def *t.DeviceDef) error {
 }
 
 func (a *adapter) DeviceGetAll(uids ...t.Uid) (map[t.Uid][]t.DeviceDef, int, error) {
-	log.Printf(InfoColor, "[ adapter devicegetall ]")
+	af.Log.Info("[ adapter devicegetall ]")
 	var unums []interface{}
 	for _, uid := range uids {
 		unums = append(unums, store.DecodeUid(uid))
@@ -2310,7 +2301,7 @@ func deviceDelete(tx *sqlx.Tx, uid t.Uid, deviceID string) error {
 }
 
 func (a *adapter) DeviceDelete(uid t.Uid, deviceID string) error {
-	log.Printf(InfoColor, "[ adapter devicedelete ]")
+	af.Log.Info("[ adapter devicedelete ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -2341,7 +2332,7 @@ func (a *adapter) DeviceDelete(uid t.Uid, deviceID string) error {
 // 2.3 Undelete existing credential. Return if successful.
 // 2.4 Insert new credential record.
 func (a *adapter) CredUpsert(cred *t.Credential) (bool, error) {
-	log.Printf(InfoColor, "[ adapter credupsert ]")
+	af.Log.Info("[ adapter credupsert ]")
 	var err error
 
 	tx, err := a.db.Beginx()
@@ -2350,7 +2341,7 @@ func (a *adapter) CredUpsert(cred *t.Credential) (bool, error) {
 	}
 	defer func() {
 		if err != nil {
-			log.Println("Rollback")
+			af.Log.Ln("Rollback")
 			tx.Rollback()
 		}
 	}()
@@ -2410,7 +2401,7 @@ func (a *adapter) CredUpsert(cred *t.Credential) (bool, error) {
 
 // CredIsConfirmed returns true of the given validation method is confirmed.
 func (a *adapter) CredIsConfirmed(uid t.Uid, method string) (bool, error) {
-	log.Printf(InfoColor, "[ adapter credisconfirmed ]")
+	af.Log.Info("[ adapter credisconfirmed ]")
 	var done int
 	// There could be more than one credential of the same method. We just need one.
 	err := a.db.Get(&done, "SELECT [done] FROM [dbo].[credentials] WHERE [userid]=? AND [method]=? AND [done]='1'",
@@ -2464,7 +2455,7 @@ func credDel(tx *sqlx.Tx, uid t.Uid, method, value string) error {
 // credentials are removed. If value is blank all credentials of the given the
 // method are removed.
 func (a *adapter) CredDel(uid t.Uid, method, value string) error {
-	log.Printf(InfoColor, "[ adapter creddel ]")
+	af.Log.Info("[ adapter creddel ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
 		return err
@@ -2485,7 +2476,7 @@ func (a *adapter) CredDel(uid t.Uid, method, value string) error {
 
 // CredConfirm marks given credential method as confirmed.
 func (a *adapter) CredConfirm(uid t.Uid, method string) error {
-	log.Printf(InfoColor, "[ adapter credconfirm ]")
+	af.Log.Info("[ adapter credconfirm ]")
 	res, err := a.db.Exec(
 		"UPDATE [dbo].[credentials] SET [updatedat]=?,[done]='1',[synthetic]=CONCAT(method,':',value) "+
 			"WHERE [userid]=? AND [method]=? AND [deletedat] IS NULL AND [done]='0'",
@@ -2504,7 +2495,7 @@ func (a *adapter) CredConfirm(uid t.Uid, method string) error {
 
 // CredFail increments failure count of the given validation method.
 func (a *adapter) CredFail(uid t.Uid, method string) error {
-	log.Printf(InfoColor, "[ adapter credfail ]")
+	af.Log.Info("[ adapter credfail ]")
 	_, err := a.db.Exec("UPDATE [dbo].[credentials] SET [updatedat]=?,[retries]=[retries]+1 WHERE [userid]=? AND [method]=? AND [done]='0'",
 		t.TimeNow(), store.DecodeUid(uid), method)
 	return err
@@ -2512,7 +2503,7 @@ func (a *adapter) CredFail(uid t.Uid, method string) error {
 
 // CredGetActive returns currently active unvalidated credential of the given user and method.
 func (a *adapter) CredGetActive(uid t.Uid, method string) (*t.Credential, error) {
-	log.Printf(InfoColor, "[ adapter credgetactive ]")
+	af.Log.Info("[ adapter credgetactive ]")
 	var cred t.Credential
 	err := a.db.Get(&cred, "SELECT [createdat],[updatedat],[method],[value],[resp],[done],[retries] "+
 		"FROM [dbo].[credentials] WHERE [userid]=? AND [deletedat] IS NULL AND [method]=? AND [done]='0'",
@@ -2530,7 +2521,7 @@ func (a *adapter) CredGetActive(uid t.Uid, method string) (*t.Credential, error)
 
 // CredGetAll returns credential records for the given user and method, all or validated only.
 func (a *adapter) CredGetAll(uid t.Uid, method string, validatedOnly bool) ([]t.Credential, error) {
-	log.Printf(InfoColor, "[ adapter credgetall ]")
+	af.Log.Info("[ adapter credgetall ]")
 	query := "SELECT [createdat],[updatedat],[method],[value],[resp],[done],[retries] FROM [dbo].[credentials] WHERE [userid]=? AND [deletedat] IS NULL"
 	args := []interface{}{store.DecodeUid(uid)}
 	if method != "" {
@@ -2559,7 +2550,7 @@ func (a *adapter) CredGetAll(uid t.Uid, method string, validatedOnly bool) ([]t.
 
 // FileStartUpload initializes a file upload
 func (a *adapter) FileStartUpload(fd *t.FileDef) error {
-	log.Printf(InfoColor, "[ adapter filestartupload ]")
+	af.Log.Info("[ adapter filestartupload ]")
 	_, err := a.db.Exec("INSERT INTO [dbo].[fileuploads] ([id],[createdat],[updatedat],[userid],[status],[mimetype],[size],[location])"+
 		" VALUES (?,?,?,?,?,?,?,?)",
 		store.DecodeUid(fd.Uid()), fd.CreatedAt, fd.UpdatedAt,
@@ -2569,7 +2560,7 @@ func (a *adapter) FileStartUpload(fd *t.FileDef) error {
 
 // FileFinishUpload marks file upload as completed, successfully or otherwise
 func (a *adapter) FileFinishUpload(fid string, status int, size int64) (*t.FileDef, error) {
-	log.Printf(InfoColor, "[ adapter filefinishupload ]")
+	af.Log.Info("[ adapter filefinishupload ]")
 	id := t.ParseUid(fid)
 	if id.IsZero() {
 		return nil, t.ErrMalformed
@@ -2597,7 +2588,7 @@ func (a *adapter) FileFinishUpload(fid string, status int, size int64) (*t.FileD
 
 // FileGet fetches a record of a specific file
 func (a *adapter) FileGet(fid string) (*t.FileDef, error) {
-	log.Printf(InfoColor, "[ adapter fileget ]")
+	af.Log.Info("[ adapter fileget ]")
 	id := t.ParseUid(fid)
 	if id.IsZero() {
 		return nil, t.ErrMalformed
@@ -2622,7 +2613,7 @@ func (a *adapter) FileGet(fid string) (*t.FileDef, error) {
 
 // FileDeleteUnused deletes file upload records.
 func (a *adapter) FileDeleteUnused(olderThan time.Time, limit int) ([]string, error) {
-	log.Printf(InfoColor, "[ adapter filedeleteunused ]")
+	af.Log.Info("[ adapter filedeleteunused ]")
 	tx, err := a.db.Begin()
 	if err != nil {
 		return nil, err
@@ -2710,7 +2701,7 @@ func toJSON(src interface{}) []byte {
 
 // Deserialize JSON data from DB.
 func fromJSON(src interface{}) interface{} {
-	if src == nil {
+	if src == nil || src.(string) == "" {
 		return nil
 	}
 	var buf bytes.Buffer
@@ -2720,14 +2711,49 @@ func fromJSON(src interface{}) interface{} {
 		return err
 	}
 	var toString string = string(buf.Bytes())
-	toString = strings.Trim(toString, "\t \n \x03 \a \f \v \x0e \x10 \b \x15 \x00 \x12 \x04 \x1b")
-	log.Println("fromJson: ", src, toString)
+	toString = strings.Trim(
+		toString,
+		"\t \n \x03 \a \f \f \v \x0e \x10 \b \x15 \x00 \x12 \x04 \x1b \x06 \x05 \x13 \x11 "+
+			"\x17 \x14 # \x16 þ",
+	)
+	af.Log.Ln("fromJson(): ", len(toString), ":", len(src.(string)))
 	var out interface{}
 	err = json.Unmarshal([]byte(toString), &out)
 	if out != nil {
 		return out
 	} else if err != nil {
-		log.Println("Err fromJson: ", err)
+		// fixing with another method
+		// fix first char is "
+		if len(toString) > 2 && toString[:2] == "\"\f" {
+			toString = toString[2:]
+		}
+
+		toStringArr := strings.Split(toString, "")
+		var removeString string
+
+		for _, s := range toStringArr {
+
+			if s != "{" && s != "\"" {
+				removeString += s
+				continue
+			}
+			break
+		}
+
+		toString = strings.Trim(toString, removeString)
+		err2 := json.Unmarshal([]byte(toString), &out)
+		if out != nil {
+			af.Log.Notice("Fixed by another method, removed string: " + removeString)
+			return out
+		} else if err2 != nil {
+			af.Log.Error("Error fromJSON() another method, removed string: " + removeString)
+			if len(toString) <= 512 {
+				af.Log.Ln(toString)
+			}
+			af.Log.Error(err2)
+		}
+
+		// af.Log.Error(err)
 	}
 
 	// if bb, ok := src.([]byte); ok {

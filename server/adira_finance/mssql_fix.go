@@ -1,4 +1,4 @@
-package fixmssql
+package adira_finance
 
 import (
 	"bytes"

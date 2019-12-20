@@ -22,6 +22,8 @@ import (
 	"strings"
 	"time"
 
+	af "github.com/abaron/chat/server/adira_finance"
+
 	// For stripping comments from JSON config
 	jcr "github.com/DisposaBoy/JsonConfigReader"
 
@@ -224,6 +226,7 @@ type configType struct {
 }
 
 func main() {
+	af.LogInfo("##### ARYO BARON #####")
 	executable, _ := os.Executable()
 
 	// All relative paths are resolved against the executable path, not against current working directory.

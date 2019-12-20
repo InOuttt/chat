@@ -371,10 +371,10 @@ func (ss *StringSlice) Scan(val interface{}) error {
 		return err
 	}
 	var toString string = string(buf.Bytes())
-	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c / , \a \x04")
+	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c / , \a \x04 \v \b")
 	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
 	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
-	log.Println(toString, json.Unmarshal([]byte(toString), ss))
+	log.Println("Scan StringSlice: ", len(toString), json.Unmarshal([]byte(toString), ss))
 	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
 	return json.Unmarshal([]byte(toString), ss)
 
@@ -559,7 +559,7 @@ func (m *AccessMode) Scan(val interface{}) error {
 		return errors.New("scan failed: fail convert and convert and convert")
 	}
 	toString = reg.ReplaceAllString(toString, "")
-	log.Println(toString)
+	log.Println("Scan AccessMode: ", len(toString), json.Unmarshal([]byte(toString), val))
 
 	// if bb, ok := []byte(toString); ok {
 	return m.UnmarshalText([]byte(toString))
@@ -694,13 +694,13 @@ func (da *DefaultAccess) Scan(val interface{}) error {
 		return err
 	}
 	var toString string = string(buf.Bytes())
-	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c \x1a \x17 \a")
+	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c \x1a \x17 \a \x1e \x1b \v")
 	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
 	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
-	log.Println(toString)
-	log.Println(json.Unmarshal([]byte(toString), da))
-	log.Println("ini auth", &da.Auth)
-	log.Println("ini anon", &da.Anon)
+	// log.Println(toString)
+	log.Println("Scan DefaultAccess: ", len(toString), json.Unmarshal([]byte(toString), da))
+	// log.Println("ini auth", &da.Auth)
+	// log.Println("ini anon", &da.Anon)
 	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
 	return json.Unmarshal([]byte(toString), da)
 
@@ -978,7 +978,7 @@ func (mh *MessageHeaders) Scan(val interface{}) error {
 	toString = strings.Trim(toString, "\t \n \a \f \x00 \x04 \x1b \x18")
 	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
 	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
-	log.Println(toString, json.Unmarshal([]byte(toString), mh))
+	log.Println("Scan MessageHeaders: ", len(toString), json.Unmarshal([]byte(toString), mh))
 	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
 	return json.Unmarshal([]byte(toString), mh)
 
