@@ -9,11 +9,12 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"errors"
-	"log"
 	"regexp"
 	"sort"
 	"strings"
 	"time"
+
+	af "github.com/abaron/chat/server/adiraFinance"
 )
 
 // StoreError satisfies Error interface but allows constant values for
@@ -364,22 +365,30 @@ type StringSlice []string
 // Topic
 func (ss *StringSlice) Scan(val interface{}) error {
 	// MsSql
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(val)
+	// handle if val == null
+	if val.(string) == "null" {
+		return nil
+	}
+
+	toString := af.IfcToString(val)
+
+	err := json.Unmarshal([]byte(toString), ss)
 	if err != nil {
+		return nil
+	}
+
+	toString = af.ClearJSON(toString)
+
+	if err := json.Unmarshal([]byte(toString), ss); err != nil {
+		af.Log.Ln(len(toString), " : ", len(val.(string)), toString, val)
+		af.Log.Error(err)
 		return err
 	}
-	var toString string = string(buf.Bytes())
-	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c / , \a \x04 \v \b")
-	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
-	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
-	log.Println("Scan StringSlice: ", len(toString), json.Unmarshal([]byte(toString), ss))
-	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
-	return json.Unmarshal([]byte(toString), ss)
+
+	return nil
 
 	// MySql
-	return json.Unmarshal(val.([]byte), ss)
+	// return json.Unmarshal(val.([]byte), ss)
 }
 
 // Value implements sql/driver.Valuer interface.
@@ -559,7 +568,8 @@ func (m *AccessMode) Scan(val interface{}) error {
 		return errors.New("scan failed: fail convert and convert and convert")
 	}
 	toString = reg.ReplaceAllString(toString, "")
-	log.Println("Scan AccessMode: ", len(toString), json.Unmarshal([]byte(toString), val))
+	// log.Println("Scan AccessMode: ", len(toString), json.Unmarshal([]byte(toString), val))
+	// log.Println("Scan AccessMode: ", len(toString), toString)
 
 	// if bb, ok := []byte(toString); ok {
 	return m.UnmarshalText([]byte(toString))
@@ -698,7 +708,7 @@ func (da *DefaultAccess) Scan(val interface{}) error {
 	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
 	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
 	// log.Println(toString)
-	log.Println("Scan DefaultAccess: ", len(toString), json.Unmarshal([]byte(toString), da))
+	// log.Println("Scan DefaultAccess: ", len(toString), json.Unmarshal([]byte(toString), da))
 	// log.Println("ini auth", &da.Auth)
 	// log.Println("ini anon", &da.Anon)
 	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
@@ -978,7 +988,7 @@ func (mh *MessageHeaders) Scan(val interface{}) error {
 	toString = strings.Trim(toString, "\t \n \a \f \x00 \x04 \x1b \x18")
 	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
 	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
-	log.Println("Scan MessageHeaders: ", len(toString), json.Unmarshal([]byte(toString), mh))
+	// log.Println("Scan MessageHeaders: ", len(toString), json.Unmarshal([]byte(toString), mh))
 	// return json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da)
 	return json.Unmarshal([]byte(toString), mh)
 

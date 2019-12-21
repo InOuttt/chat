@@ -2654,5 +2654,36 @@ func topicCat(name string) types.TopicCat {
 
 // Generate random string as a name of the group topic
 func genTopicName() string {
-	return "grp" + store.GetUidString()
+	// fix right whitespace for topic name
+	name := "grp" + store.GetUidString()
+	switch len(name) {
+	case 21:
+		name = name + "ARYO"
+	case 20:
+		name = name + "ADIRA"
+	case 19:
+		name = name + "-BARON"
+	case 18:
+		name = name + "FINANCE"
+	case 17:
+		name = name + "XX-BARON"
+	case 16:
+		name = name + "XXX-BARON"
+	case 15:
+		name = name + "ARYO-BARON"
+	case 14:
+		name = name + "-ARYO-BARON"
+	case 13:
+		name = name + "ADIRAFINANCE"
+	case 12:
+		name = name + "ADIRA-FINANCE"
+
+	default:
+		for i := len(name); i < 25; i++ {
+			name += "X"
+		}
+	}
+	return name
+
+	// return "grp" + store.GetUidString()
 }

@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	af "github.com/abaron/chat/server/adira_finance"
+	af "github.com/abaron/chat/server/adiraFinance"
 
 	// For stripping comments from JSON config
 	jcr "github.com/DisposaBoy/JsonConfigReader"

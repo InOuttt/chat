@@ -1,4 +1,4 @@
-package adira_finance
+package adiraFinance
 
 import (
 	"log"
@@ -10,15 +10,15 @@ import (
 
 const (
 	// InfoColor ...
-	InfoColor = "\033[1;34m%s\033[0m" // blue
+	InfoColor = "\033[1;34m%#v\033[0m" // blue
 	// NoticeColor ...
-	NoticeColor = "\033[1;36m%s\033[0m"
+	NoticeColor = "\033[1;36m%#v\033[0m" // light blue
 	// WarningColor ...
-	WarningColor = "\033[1;33m%s\033[0m"
+	WarningColor = "\033[1;33m%#v\033[0m" // yellow
 	// ErrorColor ...
-	ErrorColor = "\033[1;31m%s\033[0m" // red
+	ErrorColor = "\033[1;31m%#v\033[0m" // red
 	// DebugColor ...
-	DebugColor = "\033[0;36m%s\033[0m"
+	DebugColor = "\033[0;36m%#v\033[0m" // light blue thin
 )
 
 var (
@@ -26,8 +26,11 @@ var (
 	Log = LogS{
 		Logger: logrus.New(),
 	}
-	LogInfo  = Log.Logger.Info
+	// LogInfo ...
+	LogInfo = Log.Logger.Info
+	// LogDebug ...
 	LogDebug = Log.Logger.Debug
+	// LogError ...
 	LogError = Log.Logger.Error
 )
 
@@ -54,50 +57,70 @@ func (l *LogS) logInit() {
 // Info ...
 // Print info
 func (l *LogS) Info(a interface{}) {
-	log.Printf(InfoColor, a)
-	_, pathfile, no, ok := runtime.Caller(1)
-	if ok {
-		log.Printf("called by %s#%d", filepath.Base(pathfile), no)
+	if a == nil {
+		a = "[nil]"
 	}
+
+	log.Printf(InfoColor, a)
+	// _, pathfile, line, ok := runtime.Caller(1)
+	// if ok {
+	// 	log.Printf("called by %s#%d", filepath.Base(pathfile), line)
+	// }
 }
 
 // Error ...
 // Print error
 func (l *LogS) Error(a interface{}) {
+	if a == nil {
+		a = "[nil]"
+	}
+
 	log.Printf(ErrorColor, a)
-	_, pathfile, no, ok := runtime.Caller(1)
+	_, pathfile, line, ok := runtime.Caller(1)
 	if ok {
-		log.Printf("called by %s#%d", filepath.Base(pathfile), no)
+		log.Printf("called by %s#%d", filepath.Base(pathfile), line)
 	}
 }
 
 // Warn ...
 // Print warn
 func (l *LogS) Warn(a interface{}) {
+	if a == nil {
+		a = "[nil]"
+	}
+
 	log.Printf(WarningColor, a)
-	_, pathfile, no, ok := runtime.Caller(1)
+	_, pathfile, line, ok := runtime.Caller(1)
 	if ok {
-		log.Printf("called by %s#%d", filepath.Base(pathfile), no)
+		log.Printf("called by %s#%d", filepath.Base(pathfile), line)
 	}
 }
 
 // Notice ...
 // Print notice
 func (l *LogS) Notice(a interface{}) {
+	if a == nil {
+		a = "[nil]"
+	}
+
 	log.Printf(NoticeColor, a)
-	_, pathfile, no, ok := runtime.Caller(1)
+	_, pathfile, line, ok := runtime.Caller(1)
 	if ok {
-		log.Printf("called by %s#%d", filepath.Base(pathfile), no)
+		log.Printf("called by %s#%d", filepath.Base(pathfile), line)
 	}
 }
 
 // Debug ...
 // Print debug
 func (l *LogS) Debug(a interface{}) {
+	if a == nil {
+		a = "[nil]"
+	}
+
 	log.Printf(DebugColor, a)
-	_, pathfile, no, ok := runtime.Caller(1)
+	_, pathfile, line, ok := runtime.Caller(1)
 	if ok {
-		log.Printf("called by %s#%d", filepath.Base(pathfile), no)
+		log.Printf("called by %s#%d", filepath.Base(pathfile), line)
 	}
 }
 

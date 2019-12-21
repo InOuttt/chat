@@ -3,9 +3,7 @@
 package mssql
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/gob"
 	"encoding/json"
 	"errors"
 	"hash/fnv"
@@ -13,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	af "github.com/abaron/chat/server/adira_finance"
+	af "github.com/abaron/chat/server/adiraFinance"
 	"github.com/abaron/chat/server/auth"
 	"github.com/abaron/chat/server/store"
 	t "github.com/abaron/chat/server/store/types"
@@ -80,6 +78,7 @@ func (a *adapter) Open(jsonconfig string) error {
 	// This just initializes the driver but does not open the network connection.
 	a.db, err = sqlx.Open("mssql", a.dsn)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -90,6 +89,7 @@ func (a *adapter) Open(jsonconfig string) error {
 		// missing DB is OK.
 		err = nil
 	}
+	// af.Log.Error(err)
 	return err
 }
 
@@ -102,6 +102,7 @@ func (a *adapter) Close() error {
 		a.db = nil
 		a.version = -1
 	}
+	// af.Log.Error(err)
 	return err
 }
 
@@ -137,6 +138,7 @@ func (a *adapter) updateDbVersion(v int) error {
 	af.Log.Info("[ adapter updatedbversion ]")
 	a.version = -1
 	if _, err := a.db.Exec("UPDATE [kvmeta] SET [value]=? WHERE [key]='version'", v); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	return nil
@@ -147,6 +149,7 @@ func (a *adapter) CheckDbVersion() error {
 	af.Log.Info("[ adapter checkdbversion ]")
 	version, err := a.GetDbVersion()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -199,10 +202,12 @@ func (a *adapter) CreateDb(reset bool) error {
 	// a.db, err = sqlx.Open("mssql", cfg.FormatDSN())
 	a.db, err = sqlx.Open("mssql", a.dsn)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
 	if tx, err = a.db.Begin(); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -215,14 +220,17 @@ func (a *adapter) CreateDb(reset bool) error {
 	}()
 
 	if _, err = tx.Exec("IF EXISTS(select * from sys.databases where name='" + a.dbName + "') DROP DATABASE " + a.dbName); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
 	if _, err = tx.Exec("CREATE DATABASE " + a.dbName); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
 	if _, err = tx.Exec("USE " + a.dbName); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -239,6 +247,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			[public] varchar(max) COLLATE SQL_Latin1_General_CP1_CI_AS DEFAULT NULL NULL,
 			[tags] varchar(max) COLLATE SQL_Latin1_General_CP1_CI_AS DEFAULT NULL NULL
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -253,6 +262,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			INDEX usertags_tag(tag),
 			UNIQUE INDEX usertags_userid_tag(userid, tag)
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -270,6 +280,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			FOREIGN KEY(userid) REFERENCES users(id),
 			UNIQUE INDEX devices_hash (hash)
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -288,6 +299,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			UNIQUE INDEX auth_userid_scheme(userid, scheme),
 			UNIQUE INDEX auth_uname(uname)
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -311,6 +323,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			UNIQUE INDEX topics_name(name),
 			INDEX topics_owner(owner)
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -325,6 +338,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			INDEX topictags_tag(tag),
 			UNIQUE INDEX topictags_userid_tag(topic, tag)
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -348,6 +362,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			UNIQUE INDEX subscriptions_topic_userid(topic, userid),
 			INDEX subscriptions_topic(topic)
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -368,6 +383,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			FOREIGN KEY(topic) REFERENCES topics(name),
 			UNIQUE INDEX messages_topic_seqid(topic, seqid)
 		);`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -386,6 +402,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			INDEX dellog_topic_deletedfor_low_hi(topic,deletedfor,low,hi),
 			INDEX dellog_deletedfor(deletedfor)
 		);`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -407,6 +424,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			UNIQUE credentials_uniqueness(synthetic),
 			FOREIGN KEY(userid) REFERENCES users(id)
 		);`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -424,6 +442,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			location  VARCHAR(2048) NOT NULL,
 			PRIMARY KEY(id)
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -438,6 +457,7 @@ func (a *adapter) CreateDb(reset bool) error {
 			FOREIGN KEY(fileid) REFERENCES fileuploads(id) ON DELETE CASCADE,
 			FOREIGN KEY(msgid) REFERENCES messages(id) ON DELETE CASCADE
 		)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -447,9 +467,11 @@ func (a *adapter) CreateDb(reset bool) error {
 			"`value` TEXT," +
 			"PRIMARY KEY(`key`)" +
 			`)`); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	if _, err = tx.Exec("INSERT INTO [dbo].[kvmeta] ([key], [value]) VALUES('version', ?)", adpVersion); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -459,6 +481,7 @@ func (a *adapter) CreateDb(reset bool) error {
 func (a *adapter) UpgradeDb() error {
 	af.Log.Info("[ adapter upgradedb ]")
 	if _, err := a.GetDbVersion(); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -466,22 +489,27 @@ func (a *adapter) UpgradeDb() error {
 		// Perform database upgrade from version 106 to version 107.
 
 		if _, err := a.db.Exec("CREATE UNIQUE INDEX usertags_userid_tag ON usertags(userid, tag)"); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err := a.db.Exec("CREATE UNIQUE INDEX topictags_userid_tag ON topictags(topic, tag)"); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err := a.db.Exec("ALTER TABLE credentials ADD deletedat DATETIME(3) AFTER updatedat"); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if err := a.updateDbVersion(107); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err := a.GetDbVersion(); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 	}
@@ -492,14 +520,17 @@ func (a *adapter) UpgradeDb() error {
 		// Replace default user access JRWPA with JRWPAS.
 		if _, err := a.db.Exec(`UPDATE users SET access=JSON_REPLACE(access, '$.Auth', 'JRWPAS')
 			WHERE CAST(JSON_EXTRACT(access, '$.Auth') AS CHAR) LIKE '"JRWPA"'`); err != nil {
-			return err
+			af.Log.Error(err)
+				return err
 		}
 
 		if err := a.updateDbVersion(108); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err := a.GetDbVersion(); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 	}
@@ -521,6 +552,7 @@ func addTags(tx *sqlx.Tx, table, keyName string, keyVal interface{}, tags []stri
 	var err error
 	insert, err = tx.Prepare("INSERT INTO [dbo].[" + table + "] ([" + keyName + "],[tag]) VALUES(?,?)")
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -534,6 +566,7 @@ func addTags(tx *sqlx.Tx, table, keyName string, keyVal interface{}, tags []stri
 				}
 				return t.ErrDuplicate
 			}
+			af.Log.Error(err)
 			return err
 		}
 	}
@@ -555,6 +588,7 @@ func removeTags(tx *sqlx.Tx, table, keyName string, keyVal interface{}, tags []s
 	query = tx.Rebind(query)
 	_, err := tx.Exec(query, args...)
 
+	af.Log.Error(err)
 	return err
 }
 
@@ -564,6 +598,7 @@ func (a *adapter) UserCreate(user *t.User) error {
 	af.Log.Info("[ adapter usercreate ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -578,11 +613,13 @@ func (a *adapter) UserCreate(user *t.User) error {
 		decoded_uid,
 		user.CreatedAt, user.UpdatedAt,
 		user.Access, toJSON(user.Public), user.Tags); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
 	// Save user's tags to a separate table to make user findable.
 	if err = addTags(tx, "usertags", "userid", decoded_uid, user.Tags, false); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -613,6 +650,7 @@ func (a *adapter) AuthAddRecord(uid t.Uid, scheme, unique string, authLvl auth.L
 func (a *adapter) AuthDelScheme(user t.Uid, scheme string) error {
 	af.Log.Info("[ adapter authdelscheme ]")
 	_, err := a.db.Exec("DELETE FROM [dbo].[auth] WHERE [userid]=? AND [scheme]=?", store.DecodeUid(user), scheme)
+	af.Log.Error(err)
 	return err
 }
 
@@ -718,6 +756,7 @@ func (a *adapter) UserGet(uid t.Uid) (*t.User, error) {
 	}
 
 	// If user does not exist, it returns nil, nil
+	af.Log.Error(err)
 	return nil, err
 }
 
@@ -733,6 +772,7 @@ func (a *adapter) UserGetAll(ids ...t.Uid) ([]t.User, error) {
 	q = a.db.Rebind(q)
 	rows, err := a.db.Queryx(q, uids...)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -763,6 +803,7 @@ func (a *adapter) UserDelete(uid t.Uid, hard bool) error {
 	af.Log.Info("[ adapter userdelete ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -777,16 +818,19 @@ func (a *adapter) UserDelete(uid t.Uid, hard bool) error {
 	if hard {
 		// Delete user's devices
 		if err = deviceDelete(tx, uid, ""); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		// Delete user's subscriptions in all topics.
 		if err = subsDelForUser(tx, uid, true); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		// Delete records of messages soft-deleted for the user.
 		if _, err = tx.Exec("DELETE FROM [dbo].[dellog] WHERE [deletedfor]=?", decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
@@ -798,51 +842,61 @@ func (a *adapter) UserDelete(uid t.Uid, hard bool) error {
 		// First delete all messages in those topics.
 		if _, err = tx.Exec("DELETE dellog FROM dellog LEFT JOIN topics ON topics.name=dellog.topic WHERE topics.owner=?",
 			decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 		if _, err = tx.Exec("DELETE messages FROM messages LEFT JOIN topics ON topics.name=messages.topic WHERE topics.owner=?",
 			decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		// Delete all subscriptions.
 		if _, err = tx.Exec("DELETE sub FROM subscriptions AS sub LEFT JOIN topics ON topics.name=sub.topic WHERE topics.owner=?",
 			decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		// Delete topic tags
 		if _, err = tx.Exec("DELETE topictags FROM topictags LEFT JOIN topics ON topics.name=topictags.topic WHERE topics.owner=?",
 			decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		// And finally delete the topics.
 		if _, err = tx.Exec("DELETE FROM [dbo].[topics] WHERE [owner]=?", decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		// Delete user's authentication records.
 		if _, err = tx.Exec("DELETE FROM [dbo].[auth] WHERE [userid]=?", decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		// Delete all credentials.
 		if err = credDel(tx, uid, "", ""); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err = tx.Exec("DELETE FROM [dbo].[usertags] WHERE [userid]=?", decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err = tx.Exec("DELETE FROM [dbo].[users] WHERE [id]=?", decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 	} else {
 		now := t.TimeNow()
 		// Disable all user's subscriptions. That includes p2p subscriptions. No need to delete them.
 		if err = subsDelForUser(tx, uid, false); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
@@ -852,16 +906,19 @@ func (a *adapter) UserDelete(uid t.Uid, hard bool) error {
 		if _, err = tx.Exec("UPDATE subscriptions LEFT JOIN topics ON subscriptions.topic=topics.name "+
 			"SET subscriptions.updatedAt=?, subscriptions.deletedAt=? WHERE topics.owner=?",
 			now, now, decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 		// Disable all topics where the user is the owner.
 		if _, err = tx.Exec("UPDATE [dbo].[topics] SET [updatedAt]=?, [deletedAt]=? WHERE [owner]=?",
 			now, now, decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		// Disable user.
 		if _, err = tx.Exec("UPDATE [dbo].[users] SET [updatedAt]=?, [deletedAt]=? WHERE [id]=?", now, now, decoded_uid); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 	}
@@ -873,6 +930,7 @@ func (a *adapter) UserGetDisabled(since time.Time) ([]t.Uid, error) {
 	af.Log.Info("[ adapter usergetdisabled ]")
 	rows, err := a.db.Queryx("SELECT [id] FROM [dbo].[users] WHERE [deletedat]>=?", since)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -895,6 +953,7 @@ func (a *adapter) UserUpdate(uid t.Uid, update map[string]interface{}) error {
 	af.Log.Info("[ adapter userupdate ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -910,19 +969,22 @@ func (a *adapter) UserUpdate(uid t.Uid, update map[string]interface{}) error {
 
 	_, err = tx.Exec("UPDATE [dbo].[users] SET "+strings.Join(cols, ",")+" WHERE [id]=?", args...)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
 	// Tags are also stored in a separate table
 	if tags := extractTags(update); tags != nil {
 		// First delete all user tags
-		_, err = tx.Exec("DELETE FROM [dbo].[usertags] WHERE [dbo].[userid]=?", decoded_uid)
+		_, err = tx.Exec("DELETE FROM ["+a.dbName+"].[dbo].[usertags] WHERE [userid]=?", decoded_uid)
 		if err != nil {
+			af.Log.Error(err)
 			return err
 		}
 		// Now insert new tags
 		err = addTags(tx, "usertags", "userid", decoded_uid, tags, false)
 		if err != nil {
+			af.Log.Error(err)
 			return err
 		}
 	}
@@ -935,6 +997,7 @@ func (a *adapter) UserUpdateTags(uid t.Uid, add, remove, reset []string) ([]stri
 	af.Log.Info("[ adapter userupdatetags ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -950,6 +1013,7 @@ func (a *adapter) UserUpdateTags(uid t.Uid, add, remove, reset []string) ([]stri
 		// Delete all tags first if resetting.
 		_, err = tx.Exec("DELETE FROM [dbo].[usertags] WHERE [userid]=?", decoded_uid)
 		if err != nil {
+			af.Log.Error(err)
 			return nil, err
 		}
 		add = reset
@@ -959,23 +1023,27 @@ func (a *adapter) UserUpdateTags(uid t.Uid, add, remove, reset []string) ([]stri
 	// Now insert new tags. Ignore duplicates if resetting.
 	err = addTags(tx, "usertags", "userid", decoded_uid, add, reset == nil)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
 	// Delete tags.
 	err = removeTags(tx, "usertags", "userid", decoded_uid, remove)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
 	var allTags []string
 	err = tx.Select(&allTags, "SELECT [tag] FROM [dbo].[usertags] WHERE [userid]=?", decoded_uid)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
 	_, err = tx.Exec("UPDATE [dbo].[users] SET [tags]=? WHERE [id]=?", t.StringSlice(allTags), decoded_uid)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1021,11 +1089,33 @@ func (a *adapter) UserUnreadCount(uid t.Uid) (int, error) {
 
 func (a *adapter) topicCreate(tx *sqlx.Tx, topic *t.Topic) error {
 	af.Log.Info("[ adapter topiccreate ]")
+
+	// fix topic saved with right whitespaces
+	// reg, err := regexp.Compile("[^a-zA-Z0-9-]+")
+	// if err == nil {
+	// 	topic.Id = reg.ReplaceAllString(topic.Id, "")
+	// }
+	// solved by below but required to refresh page
+	// switch len(topic.Id) {
+	// case 21:
+	// 	topic.Id = topic.Id + "ARYO"
+	// case 20:
+	// 	topic.Id = topic.Id + "ADIRA"
+	// case 19:
+	// 	topic.Id = topic.Id + "-BARON"
+
+	// default:
+	// 	for i := len(topic.Id); i < 25; i++ {
+	// 		topic.Id += "X"
+	// 	}
+	// }
+
 	_, err := tx.Exec("INSERT INTO [dbo].[topics] ([createdAt],[updatedAt],[touchedAt],[name],[owner],[access],[public],[tags]) "+
 		"VALUES (?,?,?,?,?,?,?,?)",
-		topic.CreatedAt, topic.UpdatedAt, topic.TouchedAt, topic.Id, store.DecodeUid(t.ParseUid(topic.Owner)),
+		topic.CreatedAt, topic.UpdatedAt, topic.TouchedAt, strings.TrimSpace(topic.Id), store.DecodeUid(t.ParseUid(topic.Owner)),
 		topic.Access, toJSON(topic.Public), topic.Tags)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1038,6 +1128,7 @@ func (a *adapter) TopicCreate(topic *t.Topic) error {
 	af.Log.Info("[ adapter topiccreate ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	defer func() {
@@ -1048,6 +1139,7 @@ func (a *adapter) TopicCreate(topic *t.Topic) error {
 
 	err = a.topicCreate(tx, topic)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	return tx.Commit()
@@ -1081,6 +1173,7 @@ func createSubscription(tx *sqlx.Tx, sub *t.Subscription, undelete bool) error {
 	if err == nil && isOwner {
 		_, err = tx.Exec("UPDATE [dbo].[topics] SET [owner]=? WHERE [name]=?", decoded_uid, sub.Topic)
 	}
+	af.Log.Error(err)
 	return err
 }
 
@@ -1089,6 +1182,7 @@ func (a *adapter) TopicCreateP2P(initiator, invited *t.Subscription) error {
 	af.Log.Info("[ adapter topiccreatep2p ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	defer func() {
@@ -1099,11 +1193,13 @@ func (a *adapter) TopicCreateP2P(initiator, invited *t.Subscription) error {
 
 	err = createSubscription(tx, initiator, false)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
 	err = createSubscription(tx, invited, true)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1112,6 +1208,7 @@ func (a *adapter) TopicCreateP2P(initiator, invited *t.Subscription) error {
 	topic.TouchedAt = initiator.GetTouchedAt()
 	err = a.topicCreate(tx, topic)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1131,7 +1228,11 @@ func (a *adapter) TopicGet(topic string) (*t.Topic, error) {
 		if err == sql.ErrNoRows {
 			// Nothing found - clear the error
 			err = nil
+		} else {
+			af.Log.Error(err)
 		}
+
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1173,6 +1274,7 @@ func (a *adapter) TopicsForUser(uid t.Uid, keepDeleted bool, opts *t.QueryOpt) (
 
 	rows, err := a.db.Queryx(q, args...)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1214,6 +1316,7 @@ func (a *adapter) TopicsForUser(uid t.Uid, keepDeleted bool, opts *t.QueryOpt) (
 	rows.Close()
 
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1230,6 +1333,7 @@ func (a *adapter) TopicsForUser(uid t.Uid, keepDeleted bool, opts *t.QueryOpt) (
 		q = a.db.Rebind(q)
 		rows, err = a.db.Queryx(q, topq...)
 		if err != nil {
+			af.Log.Error(err)
 			return nil, err
 		}
 
@@ -1262,6 +1366,7 @@ func (a *adapter) TopicsForUser(uid t.Uid, keepDeleted bool, opts *t.QueryOpt) (
 			usrq)
 		rows, err = a.db.Queryx(q, usrq...)
 		if err != nil {
+			af.Log.Error(err)
 			return nil, err
 		}
 
@@ -1339,6 +1444,7 @@ func (a *adapter) UsersForTopic(topic string, keepDeleted bool, opts *t.QueryOpt
 
 	rows, err := a.db.Queryx(q, args...)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1394,6 +1500,7 @@ func (a *adapter) OwnTopics(uid t.Uid, opts *t.QueryOpt) ([]string, error) {
 	af.Log.Info("[ adapter owntopics ]")
 	rows, err := a.db.Queryx("SELECT [name] FROM [dbo].[topics] WHERE [owner]=?", store.DecodeUid(uid))
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1437,6 +1544,7 @@ func (a *adapter) TopicDelete(topic string, hard bool) error {
 	af.Log.Info("[ adapter topicdelete ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1448,27 +1556,33 @@ func (a *adapter) TopicDelete(topic string, hard bool) error {
 
 	if hard {
 		if _, err = tx.Exec("DELETE FROM [dbo].[subscriptions] WHERE [topic]=?", topic); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if err = messageDeleteList(tx, topic, nil); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err = tx.Exec("DELETE FROM [dbo].[topictags] WHERE [topic]=?", topic); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err = tx.Exec("DELETE FROM [dbo].[topics] WHERE [name]=?", topic); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 	} else {
 		now := t.TimeNow()
 		if _, err = tx.Exec("UPDATE [dbo].[subscriptions] SET [updatedat]=?,[deletedat]=? WHERE [topic]=?", now, now, topic); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
 		if _, err = tx.Exec("UPDATE [dbo].[topics] SET [updatedat]=?,[deletedat]=? WHERE [name]=?", now, now, topic); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 	}
@@ -1479,6 +1593,7 @@ func (a *adapter) TopicUpdateOnMessage(topic string, msg *t.Message) error {
 	af.Log.Info("[ adapter topicupdateonmessage ]")
 	_, err := a.db.Exec("UPDATE [dbo].[topics] SET [seqid]=?,[touchedat]=? WHERE [name]=?", msg.SeqId, msg.CreatedAt, topic)
 
+	af.Log.Error(err)
 	return err
 }
 
@@ -1486,6 +1601,7 @@ func (a *adapter) TopicUpdate(topic string, update map[string]interface{}) error
 	af.Log.Info("[ adapter topicupdate ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1499,6 +1615,7 @@ func (a *adapter) TopicUpdate(topic string, update map[string]interface{}) error
 	args = append(args, topic)
 	_, err = tx.Exec("UPDATE [dbo].topics SET "+strings.Join(cols, ",")+" WHERE name=?", args...)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1507,11 +1624,13 @@ func (a *adapter) TopicUpdate(topic string, update map[string]interface{}) error
 		// First delete all user tags
 		_, err = tx.Exec("DELETE FROM [dbo].[topictags] WHERE [topic]=?", topic)
 		if err != nil {
+			af.Log.Error(err)
 			return err
 		}
 		// Now insert new tags
 		err = addTags(tx, "topictags", "topic", topic, tags, false)
 		if err != nil {
+			af.Log.Error(err)
 			return err
 		}
 	}
@@ -1522,6 +1641,7 @@ func (a *adapter) TopicUpdate(topic string, update map[string]interface{}) error
 func (a *adapter) TopicOwnerChange(topic string, newOwner, oldOwner t.Uid) error {
 	af.Log.Info("[ adapter topicownerchange ]")
 	_, err := a.db.Exec("UPDATE [dbo].[topics] SET [owner]=? WHERE [name]=?", store.DecodeUid(newOwner), topic)
+	af.Log.Error(err)
 	return err
 }
 
@@ -1538,6 +1658,7 @@ func (a *adapter) SubscriptionGet(topic string, user t.Uid) (*t.Subscription, er
 			// Nothing found - clear the error
 			err = nil
 		}
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1556,6 +1677,7 @@ func (a *adapter) SubsLastSeen(topic string, user t.Uid, lastSeen map[string]tim
 	_, err := a.db.Exec("UPDATE [dbo].[subscriptions] SET [lastseen]=?,[useragent]=? WHERE [topic]=? AND [userid]=?",
 		lastSeen["LastSeen"], lastSeen["UserAgent"], topic, store.DecodeUid(user))
 
+	af.Log.Error(err)
 	return err
 }
 
@@ -1589,6 +1711,7 @@ func (a *adapter) SubsForUser(forUser t.Uid, keepDeleted bool, opts *t.QueryOpt)
 
 	rows, err := a.db.Queryx(q, args...)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1639,6 +1762,7 @@ func (a *adapter) SubsForTopic(topic string, keepDeleted bool, opts *t.QueryOpt)
 
 	rows, err := a.db.Queryx(q, args...)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1663,6 +1787,7 @@ func (a *adapter) SubsUpdate(topic string, user t.Uid, update map[string]interfa
 	af.Log.Info("[ adapter subsupdate ]")
 	tx, err := a.db.Begin()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1673,8 +1798,6 @@ func (a *adapter) SubsUpdate(topic string, user t.Uid, update map[string]interfa
 	}()
 
 	cols, args := updateByMap(update)
-	af.Log.Error(cols)
-	af.Log.Error(args)
 	q := "UPDATE [dbo].subscriptions SET " + strings.Join(cols, ",") + " WHERE [topic]=?"
 	args = append(args, topic)
 	if !user.IsZero() {
@@ -1684,6 +1807,9 @@ func (a *adapter) SubsUpdate(topic string, user t.Uid, update map[string]interfa
 	}
 
 	if _, err = tx.Exec(q, args...); err != nil {
+		af.Log.Debug(q)
+		af.Log.Warn(args)
+		af.Log.Error(err)
 		af.Log.Error(err)
 		return err
 	}
@@ -1698,12 +1824,14 @@ func (a *adapter) SubsDelete(topic string, user t.Uid) error {
 	res, err := a.db.Exec("UPDATE [dbo].[subscriptions] SET [updatedat]=?, [deletedat]=? WHERE [topic]=? AND [userid]=? AND [deletedat] IS NULL",
 		now, now, topic, store.DecodeUid(user))
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	affected, err := res.RowsAffected()
 	if err == nil && affected == 0 {
 		err = t.ErrNotFound
 	}
+	af.Log.Error(err)
 	return err
 }
 
@@ -1718,6 +1846,7 @@ func (a *adapter) SubsDelForTopic(topic string, hard bool) error {
 		_, err = a.db.Exec("UPDATE [dbo].[subscriptions] SET [updatedat]=?, [deletedat]=? WHERE [topic]=? AND [deletedat] IS NULL",
 			now, now, topic)
 	}
+	af.Log.Error(err)
 	return err
 }
 
@@ -1731,6 +1860,7 @@ func subsDelForUser(tx *sqlx.Tx, user t.Uid, hard bool) error {
 		_, err = tx.Exec("UPDATE [dbo].[subscriptions] SET [updatedat]=?, [deletedat]=? WHERE [userid]=?",
 			now, now, store.DecodeUid(user))
 	}
+	af.Log.Error(err)
 	return err
 }
 
@@ -1739,6 +1869,7 @@ func (a *adapter) SubsDelForUser(user t.Uid, hard bool) error {
 	af.Log.Info("[ adapter subsdelforuser ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1749,6 +1880,7 @@ func (a *adapter) SubsDelForUser(user t.Uid, hard bool) error {
 	}()
 
 	if err = subsDelForUser(tx, user, hard); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -1827,6 +1959,7 @@ func (a *adapter) FindUsers(uid t.Uid, req, opt []string) ([]t.Subscription, err
 	// rows, err := a.db.Queryx(query, args...)
 
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1892,6 +2025,7 @@ func (a *adapter) FindTopics(req, opt []string) ([]t.Subscription, error) {
 	rows, err := a.db.Queryx(query, append(args, a.maxResults)...)
 
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1921,6 +2055,7 @@ func (a *adapter) FindTopics(req, opt []string) ([]t.Subscription, error) {
 	rows.Close()
 
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 	return subs, nil
@@ -1949,6 +2084,7 @@ func (a *adapter) MessageSave(msg *t.Message) error {
 		id, _ := res.LastInsertId()
 		msg.SetUid(t.Uid(id))
 	}
+	af.Log.Error(err)
 	return err
 }
 
@@ -1981,9 +2117,8 @@ func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) (
 			" ORDER BY [m].[seqid] DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY",
 		unum, topic, lower, upper, limit)
 
-	af.Log.Ln(unum, topic, lower, upper, limit)
-
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -2035,6 +2170,7 @@ func (a *adapter) MessageGetDeleted(topic string, forUser t.Uid, opts *t.QueryOp
 		" AND ([deletedFor]=0 OR [deletedFor]=?)"+
 		" ORDER BY [delid] OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY", topic, lower, upper, store.DecodeUid(forUser), limit)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -2088,6 +2224,7 @@ func messageDeleteList(tx *sqlx.Tx, topic string, toDel *t.DelMessage) error {
 		var insert *sql.Stmt
 		if insert, err = tx.Prepare(
 			"INSERT INTO [dbo].[dellog] ([topic],[deletedfor],[delid],[low],[hi]) VALUES (?,?,?,?,?)"); err != nil {
+			af.Log.Error(err)
 			return err
 		}
 
@@ -2131,6 +2268,7 @@ func messageDeleteList(tx *sqlx.Tx, topic string, toDel *t.DelMessage) error {
 			_, err = tx.Exec("DELETE fml.* FROM [dbo].[filemsglinks] AS fml INNER JOIN [dbo].[messages] AS m ON m.id=fml.msgid WHERE "+
 				where, args...)
 			if err != nil {
+				af.Log.Error(err)
 				return err
 			}
 
@@ -2140,6 +2278,7 @@ func messageDeleteList(tx *sqlx.Tx, topic string, toDel *t.DelMessage) error {
 		}
 	}
 
+	af.Log.Error(err)
 	return err
 }
 
@@ -2148,6 +2287,7 @@ func (a *adapter) MessageDeleteList(topic string, toDel *t.DelMessage) (err erro
 	af.Log.Info("[ adapter messagedeletelist ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -2158,6 +2298,7 @@ func (a *adapter) MessageDeleteList(topic string, toDel *t.DelMessage) (err erro
 	}()
 
 	if err = messageDeleteList(tx, topic, toDel); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -2186,6 +2327,7 @@ func (a *adapter) MessageAttachments(msgId t.Uid, fids []string) error {
 
 	tx, err := a.db.Begin()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	defer func() {
@@ -2196,12 +2338,14 @@ func (a *adapter) MessageAttachments(msgId t.Uid, fids []string) error {
 
 	_, err = a.db.Exec("INSERT INTO [dbo].[filemsglinks]([createdat],[fileid],[msgid]) "+strings.Join(values, ","), args...)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
 	_, err = tx.Exec("UPDATE [dbo].[fileuploads] SET [updatedat]='"+strNow+"' WHERE [id] IN (?"+
 		strings.Repeat(",?", len(args)-1)+")", args...)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -2223,6 +2367,7 @@ func (a *adapter) DeviceUpsert(uid t.Uid, def *t.DeviceDef) error {
 
 	tx, err := a.db.Begin()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	defer func() {
@@ -2234,6 +2379,7 @@ func (a *adapter) DeviceUpsert(uid t.Uid, def *t.DeviceDef) error {
 	// Ensure uniqueness of the device ID: delete all records of the device ID
 	_, err = tx.Exec("DELETE FROM [dbo].[devices] WHERE [hash]=?", hash)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -2241,6 +2387,7 @@ func (a *adapter) DeviceUpsert(uid t.Uid, def *t.DeviceDef) error {
 	_, err = tx.Exec("INSERT INTO [dbo].[devices] ([userid], [hash], [deviceId], [platform], [lastseen], [lang]) VALUES (?,?,?,?,?,?)",
 		store.DecodeUid(uid), hash, def.DeviceId, def.Platform, def.LastSeen, def.Lang)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -2297,6 +2444,7 @@ func deviceDelete(tx *sqlx.Tx, uid t.Uid, deviceID string) error {
 	} else {
 		_, err = tx.Exec("DELETE FROM [dbo].[devices] WHERE [userid]=? AND [hash]=?", store.DecodeUid(uid), deviceHasher(deviceID))
 	}
+	af.Log.Error(err)
 	return err
 }
 
@@ -2304,6 +2452,7 @@ func (a *adapter) DeviceDelete(uid t.Uid, deviceID string) error {
 	af.Log.Info("[ adapter devicedelete ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	defer func() {
@@ -2314,6 +2463,7 @@ func (a *adapter) DeviceDelete(uid t.Uid, deviceID string) error {
 
 	err = deviceDelete(tx, uid, deviceID)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -2436,11 +2586,13 @@ func credDel(tx *sqlx.Tx, uid t.Uid, method, value string) error {
 
 	if method == "" {
 		_, err := tx.Exec("DELETE FROM [dbo].[credentials]"+constraints, args...)
+		af.Log.Error(err)
 		return err
 	}
 
 	// Case 2.1
 	if _, err := tx.Exec("DELETE FROM [dbo].[credentials]"+constraints+" AND ([done]='1' OR [retries]=0)", args...); err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -2448,6 +2600,7 @@ func credDel(tx *sqlx.Tx, uid t.Uid, method, value string) error {
 	args = append([]interface{}{t.TimeNow()}, args...)
 	_, err := tx.Exec("UPDATE [dbo].[credentials] SET [deletedat]=?"+constraints, args...)
 
+	af.Log.Error(err)
 	return err
 }
 
@@ -2458,6 +2611,7 @@ func (a *adapter) CredDel(uid t.Uid, method, value string) error {
 	af.Log.Info("[ adapter creddel ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 	defer func() {
@@ -2468,6 +2622,7 @@ func (a *adapter) CredDel(uid t.Uid, method, value string) error {
 
 	err = credDel(tx, uid, method, value)
 	if err != nil {
+		af.Log.Error(err)
 		return err
 	}
 
@@ -2485,6 +2640,7 @@ func (a *adapter) CredConfirm(uid t.Uid, method string) error {
 		if isDupe(err) {
 			return t.ErrDuplicate
 		}
+		af.Log.Error(err)
 		return err
 	}
 	if numrows, _ := res.RowsAffected(); numrows < 1 {
@@ -2498,6 +2654,7 @@ func (a *adapter) CredFail(uid t.Uid, method string) error {
 	af.Log.Info("[ adapter credfail ]")
 	_, err := a.db.Exec("UPDATE [dbo].[credentials] SET [updatedat]=?,[retries]=[retries]+1 WHERE [userid]=? AND [method]=? AND [done]='0'",
 		t.TimeNow(), store.DecodeUid(uid), method)
+	af.Log.Error(err)
 	return err
 }
 
@@ -2512,6 +2669,7 @@ func (a *adapter) CredGetActive(uid t.Uid, method string) (*t.Credential, error)
 		if err == sql.ErrNoRows {
 			err = nil
 		}
+		af.Log.Error(err)
 		return nil, err
 	}
 	cred.User = uid.String()
@@ -2535,6 +2693,7 @@ func (a *adapter) CredGetAll(uid t.Uid, method string, validatedOnly bool) ([]t.
 	var credentials []t.Credential
 	err := a.db.Select(&credentials, query, args...)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -2555,6 +2714,7 @@ func (a *adapter) FileStartUpload(fd *t.FileDef) error {
 		" VALUES (?,?,?,?,?,?,?,?)",
 		store.DecodeUid(fd.Uid()), fd.CreatedAt, fd.UpdatedAt,
 		store.DecodeUid(t.ParseUid(fd.User)), fd.Status, fd.MimeType, fd.Size, fd.Location)
+	af.Log.Error(err)
 	return err
 }
 
@@ -2568,6 +2728,7 @@ func (a *adapter) FileFinishUpload(fid string, status int, size int64) (*t.FileD
 
 	fd, err := a.FileGet(fid)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 	if fd == nil {
@@ -2601,6 +2762,7 @@ func (a *adapter) FileGet(fid string) (*t.FileDef, error) {
 		return nil, nil
 	}
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -2616,6 +2778,7 @@ func (a *adapter) FileDeleteUnused(olderThan time.Time, limit int) ([]string, er
 	af.Log.Info("[ adapter filedeleteunused ]")
 	tx, err := a.db.Begin()
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 	defer func() {
@@ -2637,6 +2800,7 @@ func (a *adapter) FileDeleteUnused(olderThan time.Time, limit int) ([]string, er
 
 	rows, err := tx.Query(query, args...)
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -2654,6 +2818,7 @@ func (a *adapter) FileDeleteUnused(olderThan time.Time, limit int) ([]string, er
 	rows.Close()
 
 	if err != nil {
+		af.Log.Error(err)
 		return nil, err
 	}
 
@@ -2661,6 +2826,7 @@ func (a *adapter) FileDeleteUnused(olderThan time.Time, limit int) ([]string, er
 		query, ids, _ = sqlx.In("DELETE FROM [dbo].[fileuploads] WHERE [id] IN (?)", ids)
 		_, err = tx.Exec(query, ids...)
 		if err != nil {
+			af.Log.Error(err)
 			return nil, err
 		}
 	}
@@ -2701,66 +2867,24 @@ func toJSON(src interface{}) []byte {
 
 // Deserialize JSON data from DB.
 func fromJSON(src interface{}) interface{} {
-	if src == nil || src.(string) == "" {
+	toString := af.IfcToString(src)
+	if toString == "" {
 		return nil
 	}
-	var buf bytes.Buffer
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(src)
-	if err != nil {
-		return err
-	}
-	var toString string = string(buf.Bytes())
-	toString = strings.Trim(
-		toString,
-		"\t \n \x03 \a \f \f \v \x0e \x10 \b \x15 \x00 \x12 \x04 \x1b \x06 \x05 \x13 \x11 "+
-			"\x17 \x14 # \x16 þ",
-	)
-	af.Log.Ln("fromJson(): ", len(toString), ":", len(src.(string)))
+	// af.Log.Ln("fromJson(): ", len(toString), ":", len(src.(string)))
+
 	var out interface{}
-	err = json.Unmarshal([]byte(toString), &out)
-	if out != nil {
+	err := json.Unmarshal([]byte(toString), &out)
+	if err == nil {
 		return out
-	} else if err != nil {
-		// fixing with another method
-		// fix first char is "
-		if len(toString) > 2 && toString[:2] == "\"\f" {
-			toString = toString[2:]
-		}
-
-		toStringArr := strings.Split(toString, "")
-		var removeString string
-
-		for _, s := range toStringArr {
-
-			if s != "{" && s != "\"" {
-				removeString += s
-				continue
-			}
-			break
-		}
-
-		toString = strings.Trim(toString, removeString)
-		err2 := json.Unmarshal([]byte(toString), &out)
-		if out != nil {
-			af.Log.Notice("Fixed by another method, removed string: " + removeString)
-			return out
-		} else if err2 != nil {
-			af.Log.Error("Error fromJSON() another method, removed string: " + removeString)
-			if len(toString) <= 512 {
-				af.Log.Ln(toString)
-			}
-			af.Log.Error(err2)
-		}
-
-		// af.Log.Error(err)
 	}
 
-	// if bb, ok := src.([]byte); ok {
-	// 	var out interface{}
-	// 	json.Unmarshal(bb, &out)
-	// 	return out
-	// }
+	out, err = af.StrToJSON(af.ClearJSON(toString))
+	if err == nil {
+		return out
+	}
+
+	af.Log.Error(err)
 
 	return nil
 }
@@ -2780,10 +2904,10 @@ func decodeUidString(str string) int64 {
 func updateByMap(update map[string]interface{}) (cols []string, args []interface{}) {
 	for col, arg := range update {
 		col = strings.ToLower(col)
-		if col == "[public]" || col == "[private]" {
+		if col == "public" || col == "private" {
 			arg = toJSON(arg)
 		}
-		cols = append(cols, col+"=?")
+		cols = append(cols, "["+col+"]=?")
 		args = append(args, arg)
 	}
 	return
