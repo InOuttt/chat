@@ -48,7 +48,7 @@ type configType struct {
 }
 
 // Open initializes database session
-func (a *adapter) Open(jsonconfig string) error {
+func (a *adapter) Open(jsonconfig json.RawMessage) error {
 	af.Log.Info("[ adapter open ]")
 	if a.db != nil {
 		return errors.New("mssql adapter is already connected")
@@ -628,7 +628,7 @@ func (a *adapter) UserCreate(user *t.User) error {
 
 // Add user's authentication record
 func (a *adapter) AuthAddRecord(uid t.Uid, scheme, unique string, authLvl auth.Level,
-	secret []byte, expires time.Time) (bool, error) {
+	secret []byte, expires time.Time) error {
 	af.Log.Info("[ adapter authaddrecord ]")
 
 	var exp *time.Time
@@ -639,11 +639,11 @@ func (a *adapter) AuthAddRecord(uid t.Uid, scheme, unique string, authLvl auth.L
 		unique, store.DecodeUid(uid), scheme, authLvl, secret, exp)
 	if err != nil {
 		if isDupe(err) {
-			return true, t.ErrDuplicate
+			return t.ErrDuplicate
 		}
-		return false, err
+		return err
 	}
-	return false, nil
+	return nil
 }
 
 // AuthDelScheme deletes an existing authentication scheme for the user.
@@ -668,7 +668,7 @@ func (a *adapter) AuthDelAllRecords(user t.Uid) (int, error) {
 
 // Update user's authentication secret
 func (a *adapter) AuthUpdRecord(uid t.Uid, scheme, unique string, authLvl auth.Level,
-	secret []byte, expires time.Time) (bool, error) {
+	secret []byte, expires time.Time) error {
 	af.Log.Info("[ adapter authupdrecord ]")
 	var exp *time.Time
 	if !expires.IsZero() {
@@ -678,10 +678,10 @@ func (a *adapter) AuthUpdRecord(uid t.Uid, scheme, unique string, authLvl auth.L
 	_, err := a.db.Exec("UPDATE [dbo].[auth] SET [uname]=?,[authLvl]=?,[secret]=?,[expires]=? WHERE [uname]=?",
 		unique, authLvl, secret, exp, unique)
 	if isDupe(err) {
-		return true, t.ErrDuplicate
+		return t.ErrDuplicate
 	}
 
-	return false, err
+	return err
 }
 
 // Retrieve user's authentication record
@@ -1498,7 +1498,7 @@ func (a *adapter) UsersForTopic(topic string, keepDeleted bool, opts *t.QueryOpt
 }
 
 // OwnTopics loads a slice of topic names where the user is the owner.
-func (a *adapter) OwnTopics(uid t.Uid, opts *t.QueryOpt) ([]string, error) {
+func (a *adapter) OwnTopics(uid t.Uid) ([]string, error) {
 	af.Log.Info("[ adapter owntopics ]")
 	rows, err := a.db.Queryx("SELECT [name] FROM [dbo].[topics] WHERE [owner]=?", store.DecodeUid(uid))
 	if err != nil {
@@ -1519,11 +1519,11 @@ func (a *adapter) OwnTopics(uid t.Uid, opts *t.QueryOpt) ([]string, error) {
 	return names, err
 }
 
-func (a *adapter) TopicShare(shares []*t.Subscription) (int, error) {
+func (a *adapter) TopicShare(shares []*t.Subscription) error {
 	af.Log.Info("[ adapter topicshare ]")
 	tx, err := a.db.Beginx()
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -1534,11 +1534,11 @@ func (a *adapter) TopicShare(shares []*t.Subscription) (int, error) {
 	for _, sub := range shares {
 		err = createSubscription(tx, sub, true)
 		if err != nil {
-			return 0, err
+			return err
 		}
 	}
 
-	return len(shares), tx.Commit()
+	return tx.Commit()
 }
 
 // TopicDelete deletes specified topic.
@@ -1643,7 +1643,7 @@ func (a *adapter) TopicUpdate(topic string, update map[string]interface{}) error
 	return tx.Commit()
 }
 
-func (a *adapter) TopicOwnerChange(topic string, newOwner, oldOwner t.Uid) error {
+func (a *adapter) TopicOwnerChange(topic string, newOwner t.Uid) error {
 	af.Log.Info("[ adapter topicownerchange ]")
 	_, err := a.db.Exec("UPDATE [dbo].[topics] SET [owner]=? WHERE [name]=?", store.DecodeUid(newOwner), topic)
 	af.Log.Error(err)
@@ -2925,5 +2925,5 @@ func extractTags(update map[string]interface{}) []string {
 }
 
 func init() {
-	store.RegisterAdapter(adapterName, &adapter{})
+	store.RegisterAdapter(&adapter{})
 }

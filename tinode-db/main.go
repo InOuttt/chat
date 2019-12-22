@@ -196,7 +196,7 @@ func main() {
 		log.Fatal("Failed to parse config file:", err)
 	}
 
-	err := store.Open(1, string(config.StoreConfig))
+	err := store.Open(1, config.StoreConfig)
 	defer store.Close()
 
 	if err != nil {
@@ -224,13 +224,13 @@ func main() {
 
 	if *upgrade {
 		// Upgrade DB from one version to another.
-		err = store.UpgradeDb(string(config.StoreConfig))
+		err = store.UpgradeDb(config.StoreConfig)
 		if err == nil {
 			log.Println("Database successfully upgraded")
 		}
 	} else {
 		// Reset or create DB
-		err = store.InitDb(string(config.StoreConfig), true)
+		err = store.InitDb(config.StoreConfig, true)
 	}
 
 	if err != nil {

@@ -33,7 +33,7 @@ const (
 	defaultDSN      = "root:@tcp(localhost:3306)/tinode?parseTime=true"
 	defaultDatabase = "tinode"
 
-	adpVersion = 108
+	adpVersion = 109
 
 	adapterName = "mysql"
 
@@ -55,7 +55,7 @@ func (a *adapter) Open(jsonconfig string) error {
 	var err error
 	var config configType
 
-	if err = json.Unmarshal([]byte(jsonconfig), &config); err != nil {
+	if err = json.Unmarshal(jsonconfig, &config); err != nil {
 		return errors.New("mysql adapter failed to parse config: " + err.Error())
 	}
 
@@ -118,7 +118,7 @@ func (a *adapter) GetDbVersion() (int, error) {
 	var vers int
 	err := a.db.Get(&vers, "SELECT `value` FROM kvmeta WHERE `key`='version'")
 	if err != nil {
-		if isMissingDb(err) || err == sql.ErrNoRows {
+		if isMissingDb(err) || isMissingTable(err) || err == sql.ErrNoRows {
 			err = errors.New("Database not initialized")
 		}
 		return -1, err
@@ -311,6 +311,11 @@ func (a *adapter) CreateDb(reset bool) error {
 		return err
 	}
 
+	// Create system topic 'sys'.
+	if err = createSystemTopic(tx); err != nil {
+		return err
+	}
+
 	// Indexed topic tags.
 	if _, err = tx.Exec(
 		`CREATE TABLE topictags(
@@ -455,6 +460,14 @@ func (a *adapter) CreateDb(reset bool) error {
 
 func (a *adapter) UpgradeDb() error {
 	log.Println("[ADAPTER UPGRADEDB]")
+	bumpVersion := func(a *adapter, x int) error {
+		if err := a.updateDbVersion(x); err != nil {
+			return err
+		}
+		_, err := a.GetDbVersion()
+		return err
+	}
+
 	if _, err := a.GetDbVersion(); err != nil {
 		return err
 	}
@@ -474,11 +487,7 @@ func (a *adapter) UpgradeDb() error {
 			return err
 		}
 
-		if err := a.updateDbVersion(107); err != nil {
-			return err
-		}
-
-		if _, err := a.GetDbVersion(); err != nil {
+		if err := bumpVersion(a, 107); err != nil {
 			return err
 		}
 	}
@@ -492,11 +501,25 @@ func (a *adapter) UpgradeDb() error {
 			return err
 		}
 
-		if err := a.updateDbVersion(108); err != nil {
+		if err := bumpVersion(a, 108); err != nil {
+			return err
+		}
+	}
+
+	if a.version == 108 {
+		tx, err := a.db.Begin()
+		if err != nil {
+			return err
+		}
+		if err = createSystemTopic(tx); err != nil {
+			tx.Rollback()
+			return err
+		}
+		if err = tx.Commit(); err != nil {
 			return err
 		}
 
-		if _, err := a.GetDbVersion(); err != nil {
+		if err = bumpVersion(a, 109); err != nil {
 			return err
 		}
 	}
@@ -506,6 +529,14 @@ func (a *adapter) UpgradeDb() error {
 			". DB is still at " + strconv.Itoa(a.version))
 	}
 	return nil
+}
+
+func createSystemTopic(tx *sql.Tx) error {
+	now := t.TimeNow()
+	sql := `INSERT INTO topics(createdat,updatedat,name,access,public)
+				VALUES(?,?,'sys','{"Auth": "N","Anon": "N"}','{"fn": "System"}')`
+	_, err := tx.Exec(sql, now, now)
+	return err
 }
 
 func addTags(tx *sqlx.Tx, table, keyName string, keyVal interface{}, tags []string, ignoreDups bool) error {
@@ -588,7 +619,7 @@ func (a *adapter) UserCreate(user *t.User) error {
 
 // Add user's authentication record
 func (a *adapter) AuthAddRecord(uid t.Uid, scheme, unique string, authLvl auth.Level,
-	secret []byte, expires time.Time) (bool, error) {
+	secret []byte, expires time.Time) error {
 	log.Println("[ADAPTER AUTHADDRECORD]")
 
 	var exp *time.Time
@@ -599,11 +630,11 @@ func (a *adapter) AuthAddRecord(uid t.Uid, scheme, unique string, authLvl auth.L
 		unique, store.DecodeUid(uid), scheme, authLvl, secret, exp)
 	if err != nil {
 		if isDupe(err) {
-			return true, t.ErrDuplicate
+			return t.ErrDuplicate
 		}
-		return false, err
+		return err
 	}
-	return false, nil
+	return nil
 }
 
 // AuthDelScheme deletes an existing authentication scheme for the user.
@@ -627,7 +658,7 @@ func (a *adapter) AuthDelAllRecords(user t.Uid) (int, error) {
 
 // Update user's authentication secret
 func (a *adapter) AuthUpdRecord(uid t.Uid, scheme, unique string, authLvl auth.Level,
-	secret []byte, expires time.Time) (bool, error) {
+	secret []byte, expires time.Time) error {
 	log.Println("[ADAPTER AUTHUPDRECORD]")
 	var exp *time.Time
 	if !expires.IsZero() {
@@ -637,10 +668,10 @@ func (a *adapter) AuthUpdRecord(uid t.Uid, scheme, unique string, authLvl auth.L
 	_, err := a.db.Exec("UPDATE auth SET uname=?,authLvl=?,secret=?,expires=? WHERE uname=?",
 		unique, authLvl, secret, exp, unique)
 	if isDupe(err) {
-		return true, t.ErrDuplicate
+		return t.ErrDuplicate
 	}
 
-	return false, err
+	return err
 }
 
 // Retrieve user's authentication record
@@ -1387,7 +1418,7 @@ func (a *adapter) UsersForTopic(topic string, keepDeleted bool, opts *t.QueryOpt
 }
 
 // OwnTopics loads a slice of topic names where the user is the owner.
-func (a *adapter) OwnTopics(uid t.Uid, opts *t.QueryOpt) ([]string, error) {
+func (a *adapter) OwnTopics(uid t.Uid) ([]string, error) {
 	log.Println("[ADAPTER OWNTOPICS]")
 	rows, err := a.db.Queryx("SELECT name FROM topics WHERE owner=?", store.DecodeUid(uid))
 	if err != nil {
@@ -1407,11 +1438,11 @@ func (a *adapter) OwnTopics(uid t.Uid, opts *t.QueryOpt) ([]string, error) {
 	return names, err
 }
 
-func (a *adapter) TopicShare(shares []*t.Subscription) (int, error) {
+func (a *adapter) TopicShare(shares []*t.Subscription) error {
 	log.Println("[ADAPTER TOPICSHARE]")
 	tx, err := a.db.Beginx()
 	if err != nil {
-		return 0, err
+		return err
 	}
 	defer func() {
 		if err != nil {
@@ -1422,11 +1453,11 @@ func (a *adapter) TopicShare(shares []*t.Subscription) (int, error) {
 	for _, sub := range shares {
 		err = createSubscription(tx, sub, true)
 		if err != nil {
-			return 0, err
+			return err
 		}
 	}
 
-	return len(shares), tx.Commit()
+	return tx.Commit()
 }
 
 // TopicDelete deletes specified topic.
@@ -1516,7 +1547,7 @@ func (a *adapter) TopicUpdate(topic string, update map[string]interface{}) error
 	return tx.Commit()
 }
 
-func (a *adapter) TopicOwnerChange(topic string, newOwner, oldOwner t.Uid) error {
+func (a *adapter) TopicOwnerChange(topic string, newOwner t.Uid) error {
 	log.Println("[ADAPTER TOPICOWNERCHANGE]")
 	_, err := a.db.Exec("UPDATE topics SET owner=? WHERE name=?", store.DecodeUid(newOwner), topic)
 	return err
@@ -1881,12 +1912,15 @@ func (a *adapter) FindTopics(req, opt []string) ([]t.Subscription, error) {
 // Messages
 func (a *adapter) MessageSave(msg *t.Message) error {
 	log.Println("[ADAPTER MESSAGESAVE]")
+	// store assignes message ID, but we don't use it. Message IDs are not used anywhere.
+	// Using a sequential ID provided by the database.
 	res, err := a.db.Exec(
 		"INSERT INTO messages(createdAt,updatedAt,seqid,topic,`from`,head,content) VALUES(?,?,?,?,?,?,?)",
 		msg.CreatedAt, msg.UpdatedAt, msg.SeqId, msg.Topic,
 		store.DecodeUid(t.ParseUid(msg.From)), msg.Head, toJSON(msg.Content))
 	if err == nil {
 		id, _ := res.LastInsertId()
+		// Replacing ID given by store by ID given by the DB.
 		msg.SetUid(t.Uid(id))
 	}
 	return err
@@ -1896,7 +1930,7 @@ func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) (
 	log.Println("[ADAPTER MESSAGEGETALL]")
 	var limit = a.maxResults
 	var lower = 0
-	var upper = 1 << 31
+	var upper = 1<<31 - 1
 
 	if opts != nil {
 		if opts.Since > 0 {
@@ -1952,7 +1986,7 @@ func (a *adapter) MessageGetDeleted(topic string, forUser t.Uid, opts *t.QueryOp
 	log.Println("[ADAPTER MESSAGEGETDELETED]")
 	var limit = a.maxResults
 	var lower = 0
-	var upper = 1 << 31
+	var upper = 1<<31 - 1
 
 	if opts != nil {
 		if opts.Since > 0 {
@@ -2337,21 +2371,6 @@ func (a *adapter) CredUpsert(cred *t.Credential) (bool, error) {
 	return true, tx.Commit()
 }
 
-// CredIsConfirmed returns true of the given validation method is confirmed.
-func (a *adapter) CredIsConfirmed(uid t.Uid, method string) (bool, error) {
-	log.Println("[ADAPTER CREDISCONFIRMED]")
-	var done int
-	// There could be more than one credential of the same method. We just need one.
-	err := a.db.Get(&done, "SELECT done FROM credentials WHERE userid=? AND method=? AND done=true",
-		store.DecodeUid(uid), method)
-	if err == sql.ErrNoRows {
-		// Nothing found, clear the error, otherwise it will be reported as internal error.
-		err = nil
-	}
-
-	return done > 0, err
-}
-
 // credDel deletes given validation method or all methods of the given user.
 // 1. If user is being deleted, hard-delete all records (method == "")
 // 2. If one value is being deleted:
@@ -2618,6 +2637,15 @@ func isDupe(err error) bool {
 	return ok && myerr.Number == 1062
 }
 
+func isMissingTable(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	myerr, ok := err.(*ms.MySQLError)
+	return ok && myerr.Number == 1146
+}
+
 func isMissingDb(err error) bool {
 	if err == nil {
 		return false
@@ -2687,5 +2715,5 @@ func extractTags(update map[string]interface{}) []string {
 }
 
 func init() {
-	store.RegisterAdapter(adapterName, &adapter{})
+	store.RegisterAdapter(&adapter{})
 }
