@@ -1172,8 +1172,10 @@ func createSubscription(tx *sqlx.Tx, sub *t.Subscription, undelete bool) error {
 	}
 	if err == nil && isOwner {
 		_, err = tx.Exec("UPDATE [dbo].[topics] SET [owner]=? WHERE [name]=?", decoded_uid, sub.Topic)
+	} else if err != nil {
+		af.Log.Error(err)
 	}
-	af.Log.Error(err)
+	// af.Log.Error(err)
 	return err
 }
 
@@ -1232,7 +1234,7 @@ func (a *adapter) TopicGet(topic string) (*t.Topic, error) {
 			af.Log.Error(err)
 		}
 
-		af.Log.Error(err)
+		// af.Log.Error(err)
 		return nil, err
 	}
 
@@ -1593,7 +1595,10 @@ func (a *adapter) TopicUpdateOnMessage(topic string, msg *t.Message) error {
 	af.Log.Info("[ adapter topicupdateonmessage ]")
 	_, err := a.db.Exec("UPDATE [dbo].[topics] SET [seqid]=?,[touchedat]=? WHERE [name]=?", msg.SeqId, msg.CreatedAt, topic)
 
-	af.Log.Error(err)
+	if err != nil {
+		af.Log.Error(err)
+	}
+	// af.Log.Error(err)
 	return err
 }
 
@@ -2068,23 +2073,17 @@ func (a *adapter) MessageSave(msg *t.Message) error {
 	var res sql.Result
 	var err error
 
-	// if msg.Head == nil {
-	// 	res, err = a.db.Exec(
-	// 		"INSERT INTO [dbo].[messages] ([createdAt],[updatedAt],[seqid],[topic],[from],[content]) VALUES (?,?,?,?,?,?)",
-	// 		msg.CreatedAt, msg.UpdatedAt, msg.SeqId, msg.Topic,
-	// 		store.DecodeUid(t.ParseUid(msg.From)), toJSON(msg.Content))
-
-	// } else {
 	res, err = a.db.Exec(
 		"INSERT INTO [dbo].[messages] ([createdAt],[updatedAt],[seqid],[topic],[from],[head],[content]) VALUES (?,?,?,?,?,?,?)",
 		msg.CreatedAt, msg.UpdatedAt, msg.SeqId, msg.Topic,
 		store.DecodeUid(t.ParseUid(msg.From)), msg.Head, toJSON(msg.Content))
-	// }
 	if err == nil {
 		id, _ := res.LastInsertId()
 		msg.SetUid(t.Uid(id))
+	} else {
+		af.Log.Error(err)
 	}
-	af.Log.Error(err)
+	// af.Log.Error(err)
 	return err
 }
 
