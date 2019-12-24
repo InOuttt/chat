@@ -21,7 +21,7 @@ func main() {
 	log.Printf("Tinode metrics exporter for Prometheus")
 
 	var (
-		tinodeAddr  = flag.String("tinode_addr", "http://localhost:6060/stats/expvar", "Address of the Tinode instance to scrape")
+		tinodeAddr  = flag.String("tinode_addr", "http://localhost:2096/stats/expvar", "Address of the Tinode instance to scrape")
 		namespace   = flag.String("namespace", "tinode", "Namespace for metrics '<namespace>_...'")
 		listenAt    = flag.String("listen_at", ":6222", "Host name and port to serve collected metrics at.")
 		metricsPath = flag.String("metrics_path", "/metrics", "Path under which to expose metrics.")

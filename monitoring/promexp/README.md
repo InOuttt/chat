@@ -6,7 +6,7 @@ This is a [prometheus](https://prometheus.io/) [exporter](https://prometheus.io/
 
 Run this service as
 ```
-./prometheus --tinode_addr=http://localhost:6060/stats/expvar \
+./prometheus --tinode_addr=http://localhost:2096/stats/expvar \
     --namespace=tinode --listen_at=:6222 --metrics_path=/metrics
 ```
 

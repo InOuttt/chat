@@ -16,7 +16,7 @@
 	./tinode
 	```
 
-5. Test your installation by pointing your browser to http://localhost:6060/
+5. Test your installation by pointing your browser to http://localhost:2096/
 
 
 ## Docker
@@ -95,7 +95,7 @@ See [instructions](./docker/README.md)
 	$GOPATH/bin/server -config=$GOPATH/src/github.com/tinode/chat/server/tinode.conf -static_data=$HOME/tinode/webapp/
 	```
 
-5. Test your installation by pointing your browser to [http://localhost:6060/](http://localhost:6060/). The static files from the `-static_data` path are served at web root `/`. You can change this by editing the line `static_mount` in the config file.
+5. Test your installation by pointing your browser to [http://localhost:2096/](http://localhost:2096/). The static files from the `-static_data` path are served at web root `/`. You can change this by editing the line `static_mount` in the config file.
 
 If you are running Tinode alongside another webserver, such as Apache or nginx, keep in mind that you need to launch the webapp from the URL served by Tinode. Otherwise it won't work.
 
@@ -137,7 +137,7 @@ If you are running Tinode alongside another webserver, such as Apache or nginx, 
 
 If you are testing the cluster with all nodes running on the same host, you also must override the `listen` and `grpc_listen` ports. Here is an example for launching two cluster nodes from the same host using the same config file:
 ```
-./server -config=./tinode.conf -static_data=./webapp/ -listen=:6060 -grpc_listen=:6080 -cluster_self=one &
+./server -config=./tinode.conf -static_data=./webapp/ -listen=:2096 -grpc_listen=:6080 -cluster_self=one &
 ./server -config=./tinode.conf -static_data=./webapp/ -listen=:6061 -grpc_listen=:6081 -cluster_self=two &
 ```
 A bash script [run-cluster.sh](./server/run-cluster.sh) may be found useful.

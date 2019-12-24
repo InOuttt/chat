@@ -29,23 +29,23 @@ All images are available at https://hub.docker.com/r/tinode/
 
 	1. **RethinkDB**:
 	```
-	$ docker run -p 6060:18080 -d --name tinode-srv --network tinode-net tinode/tinode-rethinkdb:latest
+	$ docker run -p 2096:18080 -d --name tinode-srv --network tinode-net tinode/tinode-rethinkdb:latest
 	```
 
 	2. **MySQL**:
 	```
-	$ docker run -p 6060:18080 -d --name tinode-srv --network tinode-net tinode/tinode-mysql:latest
+	$ docker run -p 2096:18080 -d --name tinode-srv --network tinode-net tinode/tinode-mysql:latest
 	```
 
 	See [below](#supported-environment-variables) for more options.
 
-	The port mapping `-p 6060:18080` tells Docker to map container's port 18080 to host's port 6060 making server accessible at http://localhost:6060/. The container will initialize the database with test data on the first run.
+	The port mapping `-p 2096:18080` tells Docker to map container's port 18080 to host's port 2096 making server accessible at http://localhost:2096/. The container will initialize the database with test data on the first run.
 
 	You may replace `:latest` with a different tag. See all all available tags here:
 	 * [MySQL tags](https://hub.docker.com/r/tinode/tinode-mysql/tags/)
 	 * [RethinkDB tags](https://hub.docker.com/r/tinode/tinode-rethink/tags/)
 
-5. Test the installation by pointing your browser to [http://localhost:6060/](http://localhost:6060/).
+5. Test the installation by pointing your browser to [http://localhost:2096/](http://localhost:2096/).
 
 ## Optional
 
@@ -53,7 +53,7 @@ All images are available at https://hub.docker.com/r/tinode/
 
 The container comes with a built-in config file which can be customized with values from the environment variables (see [Supported environment variables](#supported_environment_variables) below). If changes are extensive it may be more convenient to replace the built-in config file with a custom one. In that case map the config file located on your host (e.g. `/users/jdoe/new_tinode.conf`) to container (e.g. `/tinode.conf`) using [Docker volumes](https://docs.docker.com/storage/volumes/) `--volume /users/jdoe/new_tinode.conf:/tinode.conf` then instruct the container to use the new config `--env EXT_CONFIG=/tinode.conf`:
 ```
-$ docker run -p 6060:18080 -d --name tinode-srv --network tinode-net \
+$ docker run -p 2096:18080 -d --name tinode-srv --network tinode-net \
 		--volume /users/jdoe/new_tinode.conf:/tinode.conf \
 		--env EXT_CONFIG=/tinode.conf \
 		tinode/tinode-mysql:latest
@@ -79,7 +79,7 @@ Download and save the file with the [FCM service account credentials](https://cl
 Assuming your Firebase credentials file is named `myproject-1234-firebase-adminsdk-abc12-abcdef012345.json` and it's saved at `/Users/jdoe/`, your Sender ID is `141421356237`, and VAPID key (a.k.a. "Web Push certificates") is `83_Or_So_Random_Looking_Characters`, start the container with the following parameters (using MySQL container as an example):
 
 ```
-$ docker run -p 6060:18080 -d --name tinode-srv --network tinode-net \
+$ docker run -p 2096:18080 -d --name tinode-srv --network tinode-net \
 		-v /Users/jdoe:/fcm \
 		--env FCM_CRED_FILE=/fcm/myproject-1234-firebase-adminsdk-abc12-abcdef012345.json \
 		--env FCM_SENDER_ID=141421356237 \
@@ -120,7 +120,7 @@ You can specify the following environment variables when issuing `docker run` co
 | `RESET_DB` | bool | `false` | Drop and recreate the database. |
 | `SAMPLE_DATA` | string |  _see comment_ | File with sample data to load. Default `data.json` when resetting or generating new DB, none when upgrading. Use `-` to disable |
 | `SMTP_DOMAINS` | string |  | White list of email domains; when non-empty, accept registrations with emails from these domains only (email verification). |
-| `SMTP_HOST_URL` | string | `'http://localhost:6060/'` | URL of the host where the webapp is running (email verification). |
+| `SMTP_HOST_URL` | string | `'http://localhost:2096/'` | URL of the host where the webapp is running (email verification). |
 | `SMTP_LOGIN` | string |  | Optional login to use for authentication with the SMTP server (email verification). If login is missing, `addr-spec` part of `SMTP_SENDER` will be used: e.g. if `SMTP_SENDER` is `'"John Doe" <jdoe@example.com>'`, `jdoe@example.com` will be used as login. |
 | `SMTP_PASSWORD` | string |  | Password to use for authentication with the SMTP server (email verification). |
 | `SMTP_PORT` | number |  | Port number of the SMTP server to use for sending verification emails, e.g. `25` or `587`. |

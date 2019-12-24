@@ -23,7 +23,7 @@ where `X.XX.XX` is the version number which must match the server version number
 The client takes optional parameters:
 
  * `--host` is the address of the gRPC server to connect to; default `localhost:6061`.
- * `--web-host` is the address of Tinode web server, used for file uploads only; default `localhost:6060`.
+ * `--web-host` is the address of Tinode web server, used for file uploads only; default `localhost:2096`.
  * `--ssl` the server requires a secure connection (SSL)
  * `--ssl-host` the domain name to use for SNI if different from the `--host` domain name.
  * `--login-basic` is the `login:password` to be authenticated with.

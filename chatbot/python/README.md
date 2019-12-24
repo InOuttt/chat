@@ -91,11 +91,11 @@ Quotes are read from `quotes.txt` by default. The file is plain text with one qu
 2. In _step 4_ run the server adding `--env PLUGIN_PYTHON_CHAT_BOT_ENABLED=true` and `--volume botdata:/botdata` to the command line:
 	1. **RethinkDB**:
 	```
-	$ docker run -p 6060:18080 -d --name tinode-srv --env PLUGIN_PYTHON_CHAT_BOT_ENABLED=true --volume botdata:/botdata --network tinode-net tinode/tinode-rethink:latest
+	$ docker run -p 2096:18080 -d --name tinode-srv --env PLUGIN_PYTHON_CHAT_BOT_ENABLED=true --volume botdata:/botdata --network tinode-net tinode/tinode-rethink:latest
 	```
 	2. **MySQL**:
 	```
-	$ docker run -p 6060:18080 -d --name tinode-srv --env PLUGIN_PYTHON_CHAT_BOT_ENABLED=true --volume botdata:/botdata --network tinode-net tinode/tinode-mysql:latest
+	$ docker run -p 2096:18080 -d --name tinode-srv --env PLUGIN_PYTHON_CHAT_BOT_ENABLED=true --volume botdata:/botdata --network tinode-net tinode/tinode-mysql:latest
 	```
 
 3. Run the chatbot
@@ -103,7 +103,7 @@ Quotes are read from `quotes.txt` by default. The file is plain text with one qu
 	$ docker run -d --name tino-chatbot --network tinode-net --volume botdata:/botdata tinode/chatbot:latest
 	```
 
-4. Test that the bot is functional by pointing your browser to http://localhost:6060/, login and talk to user `Tino`. The user should respond to every message with a random quote.
+4. Test that the bot is functional by pointing your browser to http://localhost:2096/, login and talk to user `Tino`. The user should respond to every message with a random quote.
 
 
 You may replace the `:latest` with a different tag. See all available tags here:
