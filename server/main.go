@@ -230,7 +230,7 @@ type configType struct {
 }
 
 func main() {
-	af.LogInfo("##### ARYO BARON #####")
+	af.LogInfo("##### ARYO BARON CHAT #####")
 	executable, _ := os.Executable()
 
 	// All relative paths are resolved against the executable path, not against current working directory.
