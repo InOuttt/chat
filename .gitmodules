@@ -1,0 +1,3 @@
+[submodule "webapp"]
+ path = frontend/webapp
+ url = git@github.com:abaron/webapp.git
