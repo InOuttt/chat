@@ -160,6 +160,9 @@ var globals struct {
 
 	// Maximum allowed upload size.
 	maxFileUploadSize int64
+
+	// Ldap server base_url
+	ldapServer map[string]string
 }
 
 type validatorConfig struct {
@@ -217,6 +220,8 @@ type configType struct {
 	MaxTagCount int `json:"max_tag_count"`
 	// URL path for exposing runtime stats. Disabled if the path is blank.
 	ExpvarPath string `json:"expvar"`
+	// Ldap exchange token server
+	LdapServer map[string]string `json:"ldap_server"`
 
 	// Configs for subsystems
 	Cluster   json.RawMessage             `json:"cluster_config"`
@@ -464,6 +469,9 @@ func main() {
 		}
 	}
 
+	// Initialize ldap server base url
+	globals.ldapServer = config.LdapServer
+
 	err = push.Init(string(config.Push))
 	if err != nil {
 		log.Fatal("Failed to initialize push notifications:", err)
@@ -542,6 +550,8 @@ func main() {
 		log.Println("Static content is disabled")
 	}
 
+	// Handle ldap auth
+	mux.HandleFunc("/ldap/auth/callback", http.HandlerFunc(handleLdapExchangeToken))
 	// Handle websocket clients.
 	mux.HandleFunc("/v0/channels", serveWebSocket)
 	// Handle long polling clients. Enable compression.
