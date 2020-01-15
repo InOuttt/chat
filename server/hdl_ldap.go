@@ -7,13 +7,17 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/abaron/chat/server/auth"
 	"github.com/abaron/chat/server/store"
 	"github.com/abaron/chat/server/store/types"
 )
+
+var middleSpaceTrimmer = regexp.MustCompile(`\s+`)
 
 func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 	const contentType = "application/json"
@@ -92,8 +96,10 @@ func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 
 	// step 2. if not registered, then register new user & link it
 	// step 2a. register new user
+	m.Name = strings.TrimSpace(middleSpaceTrimmer.ReplaceAllString(m.Name, " "))
 	user.Access = types.DefaultAccess{Auth: types.ModeCAuth, Anon: types.ModeNone}
 	user.Public = map[string]string{"fn": m.Name}
+	user.Tags = strings.Split(strings.ToLower(m.Name), " ")
 	_, err = store.Users.Create(&user, nil)
 	if err != nil {
 		http.Error(
