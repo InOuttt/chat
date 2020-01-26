@@ -62,11 +62,20 @@ func ClearJSON(text string) string {
 		break
 	}
 
-	return strings.Trim(text, removeString)
+	cleaned := strings.Trim(text, removeString)
+
+	if cleaned[:1] == "{" && cleaned[len(cleaned)-1:] != "}" {
+		cleaned += "}"
+	} else if cleaned[:1] == "[" && cleaned[len(cleaned)-1:] != "]" {
+		cleaned += "]"
+	}
+
+	return cleaned
 }
 
 // StrToJSON ...
 func StrToJSON(j string) (interface{}, error) {
+	log.Println(j[:10] + " ... " + j[len(j)-10:])
 	var out interface{}
 	err := json.Unmarshal([]byte(j), &out)
 	if out != nil {

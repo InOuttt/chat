@@ -542,7 +542,17 @@ func (a *adapter) UpgradeDb() error {
 	return nil
 }
 
+func createSystemTopic(tx *sql.Tx) error {
+	af.Log.Info("[ adapter createsystemtopic ]")
+	now := t.TimeNow()
+	sql := `INSERT INTO [dbo].[topics]([createdat],[updatedat],[touchedat],[name],[access],[public])
+				VALUES(?,?,?,'sys','{"Auth": "N","Anon": "N"}','{"fn": "System"}')`
+	_, err := tx.Exec(sql, now, now, now)
+	return err
+}
+
 func addTags(tx *sqlx.Tx, table, keyName string, keyVal interface{}, tags []string, ignoreDups bool) error {
+	af.Log.Info("[ addtags ]")
 
 	if len(tags) == 0 {
 		return nil
@@ -575,6 +585,7 @@ func addTags(tx *sqlx.Tx, table, keyName string, keyVal interface{}, tags []stri
 }
 
 func removeTags(tx *sqlx.Tx, table, keyName string, keyVal interface{}, tags []string) error {
+	af.Log.Info("[ removetags ]")
 	if len(tags) == 0 {
 		return nil
 	}
@@ -1147,6 +1158,7 @@ func (a *adapter) TopicCreate(topic *t.Topic) error {
 
 // If undelete = true - update subscription on duplicate key, otherwise ignore the duplicate.
 func createSubscription(tx *sqlx.Tx, sub *t.Subscription, undelete bool) error {
+	af.Log.Info("[ createsubscription ]")
 
 	isOwner := (sub.ModeGiven & sub.ModeWant).IsOwner()
 
@@ -2207,6 +2219,7 @@ func (a *adapter) MessageGetDeleted(topic string, forUser t.Uid, opts *t.QueryOp
 }
 
 func messageDeleteList(tx *sqlx.Tx, topic string, toDel *t.DelMessage) error {
+	af.Log.Info("[ messagedeletelist ]")
 	var err error
 	if toDel == nil {
 		// Whole topic is being deleted, thus also deleting all messages.
@@ -2352,6 +2365,7 @@ func (a *adapter) MessageAttachments(msgId t.Uid, fids []string) error {
 }
 
 func deviceHasher(deviceID string) string {
+	af.Log.Info("[ devicehasher ]")
 	// Generate custom key as [64-bit hash of device id] to ensure predictable
 	// length of the key
 	hasher := fnv.New64()
@@ -2437,6 +2451,7 @@ func (a *adapter) DeviceGetAll(uids ...t.Uid) (map[t.Uid][]t.DeviceDef, int, err
 }
 
 func deviceDelete(tx *sqlx.Tx, uid t.Uid, deviceID string) error {
+	af.Log.Info("[ devicedelete ]")
 	var err error
 	if deviceID == "" {
 		_, err = tx.Exec("DELETE FROM [dbo].[devices] WHERE [userid]=?", store.DecodeUid(uid))
@@ -2570,6 +2585,7 @@ func (a *adapter) CredIsConfirmed(uid t.Uid, method string) (bool, error) {
 // (otherwise it could be used to circumvent the limit on validation attempts).
 // 2.2 In that case mark it as soft-deleted.
 func credDel(tx *sqlx.Tx, uid t.Uid, method, value string) error {
+	af.Log.Info("[ creddel ]")
 	constraints := " WHERE [userid]=?"
 	args := []interface{}{store.DecodeUid(uid)}
 
@@ -2837,6 +2853,7 @@ func (a *adapter) FileDeleteUnused(olderThan time.Time, limit int) ([]string, er
 
 // Check if MySQL error is a Error Code: 1062. Duplicate entry ... for key ...
 func isDupe(err error) bool {
+	af.Log.Info("[ isdupe ]")
 	if err == nil {
 		return false
 	}
@@ -2846,6 +2863,7 @@ func isDupe(err error) bool {
 }
 
 func isMissingDb(err error) bool {
+	af.Log.Info("[ ismissingdb ]")
 	if err == nil {
 		return false
 	}
@@ -2856,6 +2874,7 @@ func isMissingDb(err error) bool {
 
 // Convert to JSON before storing to JSON field.
 func toJSON(src interface{}) []byte {
+	af.Log.Info("[ tojson ]")
 	if src == nil {
 		return nil
 	}
@@ -2866,6 +2885,7 @@ func toJSON(src interface{}) []byte {
 
 // Deserialize JSON data from DB.
 func fromJSON(src interface{}) interface{} {
+	// af.Log.Info("[ fromjson ]")
 	toString := af.IfcToString(src)
 	if toString == "" {
 		return nil
@@ -2890,17 +2910,20 @@ func fromJSON(src interface{}) interface{} {
 
 // UIDs are stored as decoded int64 values. Take decoded string representation of int64, produce UID.
 func encodeUidString(str string) t.Uid {
+	af.Log.Info("[ encodeuidstring ]")
 	unum, _ := strconv.ParseInt(str, 10, 64)
 	return store.EncodeUid(unum)
 }
 
 func decodeUidString(str string) int64 {
+	af.Log.Info("[ decodeuidstring ]")
 	uid := t.ParseUid(str)
 	return store.DecodeUid(uid)
 }
 
 // Convert update to a list of columns and arguments.
 func updateByMap(update map[string]interface{}) (cols []string, args []interface{}) {
+	af.Log.Info("[ updatebymap ]")
 	for col, arg := range update {
 		col = strings.ToLower(col)
 		if col == "public" || col == "private" {
@@ -2914,6 +2937,7 @@ func updateByMap(update map[string]interface{}) (cols []string, args []interface
 
 // If Tags field is updated, get the tags so tags table cab be updated too.
 func extractTags(update map[string]interface{}) []string {
+	af.Log.Info("[ extracttags ]")
 	var tags []string
 
 	val := update["Tags"]
