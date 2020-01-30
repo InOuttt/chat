@@ -2951,3 +2951,16 @@ func extractTags(update map[string]interface{}) []string {
 func init() {
 	store.RegisterAdapter(&adapter{})
 }
+
+func (a *adapter) MessageRemoveAPI(from int64, to int64) error {
+	af.Log.Info("[ messageremoveapi ]")
+
+	fromDate := time.Unix(from, 0)
+	toDate := time.Unix(to, 0)
+
+	_, err := a.db.Exec("DELETE FROM [dbo].[messages] WHERE [createdAt] BETWEEN CONVERT(datetime,?) AND CONVERT(datetime,?)", fromDate, toDate)
+
+	af.Log.Error(err)
+
+	return err
+}

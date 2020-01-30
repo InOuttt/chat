@@ -2176,3 +2176,7 @@ func isMissingDb(err error) bool {
 func init() {
 	store.RegisterAdapter(&adapter{})
 }
+
+func (a *adapter) MessageRemoveApi(from int64, to int64) error {
+	return nil
+}

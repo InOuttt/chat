@@ -593,6 +593,9 @@ func main() {
 	// Handle ldap auth
 	mux.HandleFunc("/ldap/auth/callback", http.HandlerFunc(handleLdapExchangeToken))
 
+	// Handle ldap auth
+	mux.HandleFunc(config.ApiPath+"v0/messages/remove", http.HandlerFunc(handleMessageRemove))
+
 	// Handle websocket clients.
 	mux.HandleFunc(config.ApiPath+"v0/channels", serveWebSocket)
 	// Handle long polling clients. Enable compression.

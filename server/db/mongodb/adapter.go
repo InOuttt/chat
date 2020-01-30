@@ -2164,3 +2164,7 @@ func isDuplicateErr(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "duplicate key error")
 }
+
+func (a *adapter) MessageRemoveAPI(from int64, to int64) error {
+	return nil
+}

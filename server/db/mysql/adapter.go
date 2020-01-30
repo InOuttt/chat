@@ -2740,3 +2740,7 @@ func extractTags(update map[string]interface{}) []string {
 func init() {
 	store.RegisterAdapter(&adapter{})
 }
+
+func (a *adapter) MessageRemoveAPI(from int64, to int64) error {
+	return nil
+}

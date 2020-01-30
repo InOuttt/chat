@@ -869,3 +869,9 @@ func (FileMapper) DeleteUnused(olderThan time.Time, limit int) error {
 	}
 	return nil
 }
+
+// MessageRemoveAPI ...
+// user for api to remove range of all messages
+func MessageRemoveAPI(from int64, to int64) error {
+	return adp.MessageRemoveAPI(from, to)
+}
