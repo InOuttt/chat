@@ -1908,6 +1908,10 @@ func (a *adapter) SubsDelForUser(user t.Uid, hard bool) error {
 // Returns a list of users who match given tags, such as "email:jdoe@example.com" or "tel:+18003287448".
 // Searching the 'users.Tags' for the given tags using respective index.
 func (a *adapter) FindUsers(uid t.Uid, req, opt []string) ([]t.Subscription, error) {
+	if len(req) > 0 && req[0] == "all" {
+		return FindUsersAll(a, uid)
+	}
+
 	/* SELECT
 		[u].[id],
 		[u].[createdat],
@@ -1993,6 +1997,74 @@ func (a *adapter) FindUsers(uid t.Uid, req, opt []string) ([]t.Subscription, err
 			subs = nil
 			break
 		}
+
+		if userId == thisUser {
+			// Skip the callee
+			continue
+		}
+		sub.User = store.EncodeUid(userId).String()
+		sub.SetPublic(fromJSON(public))
+		sub.SetDefaultAccess(access.Auth, access.Anon)
+		foundTags := make([]string, 0, 1)
+		for _, tag := range userTags {
+			if _, ok := index[tag]; ok {
+				foundTags = append(foundTags, tag)
+			}
+		}
+		sub.Private = foundTags
+		subs = append(subs, sub)
+	}
+	rows.Close()
+
+	return subs, err
+
+}
+
+func FindUsersAll(a *adapter, uid t.Uid) ([]t.Subscription, error) {
+	af.Log.Info("[ adapter findusersall ]")
+	index := make(map[string]struct{})
+
+	query := `SELECT
+			[u].[id],
+			[u].[createdat],
+			[u].[updatedat],
+			MAX([u].[access]) AS [access],
+			[u].[public],
+			[u].[tags],
+			COUNT ( * ) AS [matches]
+		FROM
+			[dbo].[users] AS [u]
+		GROUP BY
+			[u].[id],
+			[u].[createdat],
+			[u].[updatedat],
+			[u].[public],
+			[u].[tags]
+	ORDER BY [matches] DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY`
+
+	// Get users matched by tags, sort by number of matches from high to low.
+	rows, err := a.db.Queryx(query, a.maxResults)
+	// rows, err := a.db.Queryx(query, args...)
+
+	if err != nil {
+		af.Log.Error(err)
+		return nil, err
+	}
+
+	var userId int64
+	var public interface{}
+	var access t.DefaultAccess
+	var userTags t.StringSlice
+	var ignored int
+	var sub t.Subscription
+	var subs []t.Subscription
+	thisUser := store.DecodeUid(uid)
+	for rows.Next() {
+		if err = rows.Scan(&userId, &sub.CreatedAt, &sub.UpdatedAt, &access, &public, &userTags, &ignored); err != nil {
+			subs = nil
+			break
+		}
+		// af.Log.Error(access)
 
 		if userId == thisUser {
 			// Skip the callee
