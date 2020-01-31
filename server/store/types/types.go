@@ -367,6 +367,7 @@ type StringSlice []string
 // Scan implements sql.Scanner interface.
 // Topic
 func (ss *StringSlice) Scan(val interface{}) error {
+	af.Log.Info("[ scan stringslice ]")
 	// MsSql
 	// handle if val == null
 	if val.(string) == "null" {
@@ -561,6 +562,7 @@ func (m *AccessMode) UnmarshalJSON(b []byte) error {
 // Scan is an implementation of sql.Scanner interface. It expects the
 // value to be a byte slice representation of an ASCII string.
 func (m *AccessMode) Scan(val interface{}) error {
+	af.Log.Info("[ scan accessmode ]")
 	// MsSQL
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
@@ -698,6 +700,7 @@ type DefaultAccess struct {
 // Scan is an implementation of Scanner interface so the value can be read from SQL DBs
 // It assumes the value is serialized and stored as JSON
 func (da *DefaultAccess) Scan(val interface{}) error {
+	af.Log.Info("[ scan defaultaccess ]")
 	// log.Println("nol: ", val.(string))
 	// log.Println("satu: ", val)
 	// log.Println("dua: ", val.([]byte))
@@ -712,6 +715,7 @@ func (da *DefaultAccess) Scan(val interface{}) error {
 	}
 	var toString string = string(buf.Bytes())
 	toString = strings.Trim(toString, "\t \n \x00 \x1f \f \x1c \x1a \x17 \a \x1e \x1b \v")
+	toString = af.ClearJSON(toString)
 	// toString := strings.Join(strings.Fields(strings.TrimSpace(string(buf.Bytes()))), " ")
 	// log.Println("ERR UNMARSHAL", json.Unmarshal([]byte(`{"Auth":"JRWPAS","Anon":"N"}`), da))
 	// log.Println(toString)
@@ -984,6 +988,7 @@ type MessageHeaders map[string]interface{}
 // Scan implements sql.Scanner interface.
 // Get message all
 func (mh *MessageHeaders) Scan(val interface{}) error {
+	af.Log.Info("[ scan messageheaders ]")
 	// MsSql
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
