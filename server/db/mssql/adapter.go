@@ -2040,7 +2040,7 @@ func FindUsersAll(a *adapter, uid t.Uid) ([]t.Subscription, error) {
 			[u].[updatedat],
 			[u].[public],
 			[u].[tags]
-	ORDER BY [matches] DESC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY`
+	ORDER BY [u].[public] ASC OFFSET 0 ROWS FETCH NEXT ? ROWS ONLY`
 
 	// Get users matched by tags, sort by number of matches from high to low.
 	rows, err := a.db.Queryx(query, a.maxResults)

@@ -3,11 +3,13 @@ package main
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/abaron/chat/server/store"
+	"github.com/abaron/chat/server/store/types"
 )
 
 func handleMessageRemove(w http.ResponseWriter, r *http.Request) {
@@ -75,6 +77,47 @@ func handleMessageRemove(w http.ResponseWriter, r *http.Request) {
 		Message: "Success",
 	}
 	json.NewEncoder(w).Encode(resp)
+}
+
+func handleMessageUnreadCount(w http.ResponseWriter, r *http.Request) {
+	uid := r.URL.Query().Get("uid")
+	if len(uid) == 0 {
+		http.Error(
+			w,
+			http.StatusText(http.StatusUnauthorized),
+			http.StatusUnauthorized,
+		)
+		return
+	}
+
+	uuid, _ := strconv.ParseUint(uid, 10, 64)
+	if uuid == 0 {
+		http.Error(
+			w,
+			http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError,
+		)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	resp := struct {
+		Status  bool
+		Message string
+		Unread  int
+	}{}
+
+	var err error
+	resp.Unread, err = store.Users.GetUnreadCount(types.Uid(uuid))
+	if err != nil {
+		http.Error(
+			w,
+			http.StatusText(http.StatusInternalServerError),
+			http.StatusInternalServerError,
+		)
+	}
+
+	fmt.Fprint(w, resp.Unread)
 }
 
 func validateBasicAuth(username, password string) bool {
