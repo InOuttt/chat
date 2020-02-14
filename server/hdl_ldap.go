@@ -23,13 +23,13 @@ func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 	const contentType = "application/json"
 	var (
 		user    types.User
-		ldapURL = globals.ldapServer["base_url"] + "/api/ldap/chat"
+		ldapURL = globals.ldapServer["protocol_scheme"] + "://" + globals.ldapServer["base_url"] + "/api/ldap/chat"
 	)
 	ldapToken := r.URL.Query().Get("token")
 	if len(ldapToken) == 0 {
 		http.Error(
 			w,
-			http.StatusText(http.StatusUnauthorized),
+			http.StatusText(http.StatusUnauthorized)+" 0xA",
 			http.StatusUnauthorized,
 		)
 		return
@@ -48,7 +48,7 @@ func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(
 			w,
-			http.StatusText(http.StatusInternalServerError),
+			http.StatusText(http.StatusInternalServerError)+" 0xB"+err.Error(),
 			http.StatusInternalServerError,
 		)
 		return
@@ -58,7 +58,7 @@ func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK {
 		http.Error(
 			w,
-			http.StatusText(resp.StatusCode),
+			http.StatusText(resp.StatusCode)+" 0xC",
 			resp.StatusCode,
 		)
 		return
@@ -73,7 +73,7 @@ func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(
 			w,
-			http.StatusText(http.StatusInternalServerError),
+			http.StatusText(http.StatusInternalServerError)+" 0xD",
 			http.StatusInternalServerError,
 		)
 		return
@@ -84,7 +84,7 @@ func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 		if ldapID == 0 {
 			http.Error(
 				w,
-				http.StatusText(http.StatusInternalServerError),
+				http.StatusText(http.StatusInternalServerError)+" 0xE",
 				http.StatusInternalServerError,
 			)
 			return
@@ -125,7 +125,7 @@ func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 		store.Users.Delete(user.Uid(), true)
 		http.Error(
 			w,
-			http.StatusText(http.StatusInternalServerError),
+			http.StatusText(http.StatusInternalServerError)+" 0xF",
 			http.StatusInternalServerError,
 		)
 		return
@@ -136,7 +136,7 @@ func handleLdapExchangeToken(w http.ResponseWriter, r *http.Request) {
 		store.Users.Delete(user.Uid(), true)
 		http.Error(
 			w,
-			http.StatusText(http.StatusInternalServerError),
+			http.StatusText(http.StatusInternalServerError)+" 0xG",
 			http.StatusInternalServerError,
 		)
 		return
@@ -158,4 +158,16 @@ here:
 	var qs = make(url.Values, 1)
 	qs.Add("token", base64.RawStdEncoding.EncodeToString(encToken))
 	http.Redirect(w, r, fmt.Sprintf("/#?%s", qs.Encode()), http.StatusSeeOther)
+}
+
+func handleLdapLogout(w http.ResponseWriter, r *http.Request) {
+	html := `<script type="text/javascript">
+		localStorage.clear();
+		sessionStorage.clear();
+		document.cookie.split(";").forEach(function(c) { document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); });
+		window.location = '` + globals.ldapServer["protocol_scheme"] + "://" + globals.ldapServer["base_url"] + `';
+	</script>
+	`
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprint(w, html)
 }

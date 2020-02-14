@@ -593,6 +593,9 @@ func main() {
 	// Handle ldap auth
 	mux.HandleFunc("/ldap/auth/callback", http.HandlerFunc(handleLdapExchangeToken))
 
+	// Handle ldap logout
+	mux.HandleFunc("/ldap/auth/logout", http.HandlerFunc(handleLdapLogout))
+
 	// Handle remove messages
 	mux.HandleFunc(config.ApiPath+"v0/messages/remove", http.HandlerFunc(handleMessageRemove))
 
