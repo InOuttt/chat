@@ -2175,7 +2175,7 @@ func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) (
 	af.Log.Info("[ adapter messagegetall ]")
 	var limit = a.maxResults
 	var lower = 0
-	var upper = 1 << 31
+	var upper = int64(1 << 31)
 
 	if opts != nil {
 		if opts.Since > 0 {
@@ -2183,7 +2183,7 @@ func (a *adapter) MessageGetAll(topic string, forUser t.Uid, opts *t.QueryOpt) (
 		}
 		if opts.Before > 0 {
 			// MySQL BETWEEN is inclusive-inclusive, Tinode API requires inclusive-exclusive, thus -1
-			upper = opts.Before - 1
+			upper = int64(opts.Before - 1)
 		}
 
 		if opts.Limit > 0 && opts.Limit < limit {
@@ -2232,7 +2232,7 @@ func (a *adapter) MessageGetDeleted(topic string, forUser t.Uid, opts *t.QueryOp
 	af.Log.Info("[ adapter messagegetdeleted ]")
 	var limit = a.maxResults
 	var lower = 0
-	var upper = 1 << 31
+	var upper = int64(1 << 31)
 
 	if opts != nil {
 		if opts.Since > 0 {
@@ -2240,7 +2240,7 @@ func (a *adapter) MessageGetDeleted(topic string, forUser t.Uid, opts *t.QueryOp
 		}
 		if opts.Before > 1 {
 			// DelRange is inclusive-exclusive, while BETWEEN is inclusive-inclisive.
-			upper = opts.Before - 1
+			upper = int64(opts.Before - 1)
 		}
 
 		if opts.Limit > 0 && opts.Limit < limit {
