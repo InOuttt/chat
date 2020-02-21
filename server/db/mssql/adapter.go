@@ -45,6 +45,7 @@ const (
 type configType struct {
 	DSN    string `json:"dsn,omitempty"`
 	DBName string `json:"database,omitempty"`
+	Salt   string `json:"salt,omitempty"`
 }
 
 // Open initializes database session
@@ -61,12 +62,12 @@ func (a *adapter) Open(jsonconfig json.RawMessage) error {
 		return errors.New("mssql adapter failed to parse config: " + err.Error())
 	}
 
-	a.dsn = config.DSN
+	a.dsn = af.DecodeConnection(config.DSN, config.Salt)
 	if a.dsn == "" {
 		a.dsn = defaultDSN
 	}
 
-	a.dbName = config.DBName
+	a.dbName = af.DecodeDBName(config.DBName, config.Salt)
 	if a.dbName == "" {
 		a.dbName = defaultDatabase
 	}
